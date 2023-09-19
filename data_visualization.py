@@ -13,7 +13,12 @@ class QRAMDataVisualization:
             print("remove n folded")
             self.remove_plot(plot_id)
             return
-        self.plot(plot_id, "North", "Counts", "Time (ns)", self.current_exp.files["North_timetags_folded_to_seq"])
+        data = self.current_exp.files["North_timetags_folded_to_seq"] \
+            + self.current_exp.files["Bright_timetags_folded_to_seq"] \
+                + self.current_exp.files["Dark_timetags_folded_to_seq"] \
+                    + self.current_exp.files["South_timetags_folded_to_seq"] \
+                    +self.current_exp.files["FS_timetags_folded_to_seq"] 
+        self.plot(plot_id, "North", "Counts", "Time (ns)", data, label=self.current_exp.title)
 
 
 class PlotManagerFrame(tk.Frame):
@@ -94,7 +99,8 @@ class PlotFrame(QRAMDataVisualization, tk.Frame):
         self.ax = self.figure.add_subplot()
         self.ax.set_title(f"plot {self.id}")
         self.ax.set_ylabel("y")
-        self.ax.set_xlabel("x")     
+        self.ax.set_xlabel("x")
+        self.ax.legend() 
 
     def plot(self, plot_id, title=None, y_label="y", x_label="x", *args, **kwargs):
         self.ax.set_title(title or f"plot {self.id}")
@@ -112,8 +118,11 @@ class PlotFrame(QRAMDataVisualization, tk.Frame):
             self.plots[self.current_exp.title][plot_id] = new_plot
         else:
             self.plots[self.current_exp.title][plot_id] = new_plot
+
+        self.ax.legend()
         self.canvas.draw()
     
     def remove_plot(self, plot_id):
         self.plots[self.current_exp.title].pop(plot_id).remove()
+        self.ax.legend()
         self.canvas.draw()
