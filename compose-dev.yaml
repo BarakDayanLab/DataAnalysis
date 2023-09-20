@@ -8,4 +8,5 @@ services:
       source: /var/run/docker.sock
       target: /var/run/docker.sock
     command: sleep infinity
-
+    environment:
+    - DISPLAY=10.7.146.215:0.0
