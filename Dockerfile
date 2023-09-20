@@ -1,6 +1,6 @@
 FROM python:3.9
 
-RUN apt-get install python-tk
+RUN sudo apt-get install python-tk
 
 WORKDIR /code
 
