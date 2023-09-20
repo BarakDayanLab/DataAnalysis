@@ -1,0 +1,11 @@
+version: '0.1'
+
+services:
+  app:
+    build:
+      dockerfile: ./Dockerfile
+    volumes:
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
+
