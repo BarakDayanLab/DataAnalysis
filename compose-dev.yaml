@@ -2,8 +2,7 @@ version: '0.1'
 
 services:
   app:
-    build:
-      dockerfile: ./Dockerfile
+    build: .
     volumes:
     - type: bind
       source: /var/run/docker.sock
