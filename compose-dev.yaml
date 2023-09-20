@@ -7,6 +7,7 @@ services:
     - type: bind
       source: /var/run/docker.sock
       target: /var/run/docker.sock
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw
     command: sleep infinity
     environment:
-    - DISPLAY=10.7.146.215:0.0
+    - DISPLAY=$DISPLAY
