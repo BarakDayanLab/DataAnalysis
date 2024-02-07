@@ -1,0 +1,1 @@
+transit condition: [2, 1, 2]; reflection threshold: 2550 @ 9 ms
