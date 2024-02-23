@@ -27,7 +27,8 @@ class SpectrumPlannedSequence(PlannedSequence):
             self.bins[bin_index] += 1
 
     def calculate_result_vector(self, others=None, index=None):
-        self.x_vals = DETUNING_FREQUENCIES
+        # 3 conditions
+        self.x_vals = np.array([DETUNING_FREQUENCIES for _ in range(4)])
         self.num_data_points = np.zeros(self.x_vals.shape)
         self.result_vector = np.zeros(self.x_vals.shape)
 
@@ -40,9 +41,29 @@ class SpectrumPlannedSequence(PlannedSequence):
             y_detuned = self.bins[i]
             y_next = self.bins[i + 1]
 
+            # condition 0
+            cond = 0
             if y_prev >= 1 and y_next >= 1:
-                self.num_data_points[freq_index] += 1
-                self.result_vector[freq_index] += y_detuned
+                self.num_data_points[cond, freq_index] += 1
+                self.result_vector[cond, freq_index] += y_detuned
+
+            # condition 1
+            cond = 1
+            if (y_prev >= 2 and y_next >= 1) or (y_prev >= 1 and y_next >= 2):
+                self.num_data_points[cond, freq_index] += 1
+                self.result_vector[cond, freq_index] += y_detuned
+
+            # condition 2
+            cond = 2
+            if y_prev >= 2 and y_next >= 2:
+                self.num_data_points[cond, freq_index] += 1
+                self.result_vector[cond, freq_index] += y_detuned
+
+            # condition 3
+            cond = 3
+            if y_prev == 0 and y_next == 0:
+                self.num_data_points[cond, freq_index] += 1
+                self.result_vector[cond, freq_index] += y_detuned
 
 
 class SpectrumNormalizationPlannedSequence(SpectrumPlannedSequence):
@@ -78,23 +99,38 @@ normalization_experiment = Experiment(experiment_data=[normalization_data], cycl
                                       planned_sequence_class=SpectrumNormalizationPlannedSequence)
 normalization_experiment.analyze()
 
-# pd.DataFrame({'detunings': experiment.x_vals,
-#               'experiment_counts': experiment.num_data_points,
-#               'experiment_sums': experiment.sum_results,
-#               'normalization_counts': normalization_experiment.num_data_points,
-#               'normalization_sums': normalization_experiment.sum_results}).to_csv(
-#     'Data/output.csv')
+save_data = {'detunings': experiment.x_vals[0],
+             'normalization_counts': normalization_experiment.num_data_points,
+             'normalization_sums': normalization_experiment.sum_results}
+for i in range(experiment.x_vals.shape[0]):
+    save_data.update({
+        f'experiment_counts_{i}': experiment.num_data_points[i],
+        f'experiment_sums_{i}': experiment.sum_results[i],
+    })
+pd.DataFrame(save_data).to_csv('Data/output_multiple.csv')
 
-fig, axs = plt.subplots(1, 2, squeeze=False)
+fig, axs = plt.subplots(2, 2, squeeze=False)
 axs = axs.flatten()
-axs[0].plot(experiment.x_vals, experiment.sum_results / experiment.num_data_points)
+axs[0].plot(experiment.x_vals.T, experiment.sum_results.T / experiment.num_data_points.T)
 axs[0].set_xlabel('Detuning frequency [Mhz]')
 axs[0].set_ylabel('Meaned counts after test')
-axs[0].set_ylim(0, 1.1 * np.max(experiment.sum_results / experiment.num_data_points))
-axs[1].plot(normalization_experiment.x_vals,
-            normalization_experiment.sum_results / normalization_experiment.num_data_points)
+axs[0].set_ylim(0, axs[0].get_ylim()[1] * 1.1)
+axs[0].legend([f'condition {i}' for i in range(experiment.x_vals.shape[0])])
+axs[1].plot(normalization_experiment.x_vals.T,
+            normalization_experiment.sum_results.T / normalization_experiment.num_data_points.T)
 axs[1].set_xlabel('Detuning frequency [Mhz]')
 axs[1].set_ylabel('Total counts no atoms (normalization)')
-axs[1].set_ylim(0, 1.1 * np.max(normalization_experiment.sum_results / normalization_experiment.num_data_points))
+axs[1].set_ylim(0, axs[1].get_ylim()[1] * 1.1)
+axs[2].plot(experiment.x_vals.T, experiment.num_data_points.T)
+axs[2].set_xlabel('Detuning frequency [Mhz]')
+axs[2].set_ylabel('Number of data points')
+axs[2].legend([f'condition {i}' for i in range(experiment.x_vals.shape[0])])
+axs[2].set_ylim(0, axs[2].get_ylim()[1] * 1.1)
+axs[3].plot(normalization_experiment.x_vals.T, (experiment.sum_results.T / experiment.num_data_points.T) /
+            (normalization_experiment.sum_results.T / normalization_experiment.num_data_points.T).reshape((-1, 1)))
+axs[3].set_xlabel('Detuning frequency [Mhz]')
+axs[3].set_ylabel('Normalized meaned counts after test')
+axs[3].legend([f'condition {i}' for i in range(experiment.x_vals.shape[0])])
+axs[3].set_ylim(0, axs[3].get_ylim()[1] * 1.1)
 
 plt.show()

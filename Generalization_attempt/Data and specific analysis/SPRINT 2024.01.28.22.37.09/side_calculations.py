@@ -1,0 +1,11 @@
+import pandas as pd
+
+df_experiment_summary = pd.read_csv('output_experiment_summary.csv')
+df_normalization_summary = pd.read_csv('output_normalization_summary.csv')
+N_cycles_experiment = 250
+N_cycles_normalization = 50
+
+SNR = (df_experiment_summary['experiment_counts'][(x.endswith('transit') for x in df_experiment_summary['x_vals'])] / N_cycles_experiment) / (
+            df_normalization_summary['experiment_counts'][(x.endswith('transit') for x in df_normalization_summary['x_vals'])] / N_cycles_normalization)
+
+print(SNR)
