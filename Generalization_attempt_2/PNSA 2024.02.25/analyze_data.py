@@ -125,9 +125,10 @@ subtitles = [
     'dark_photons',
     'reflected_sprint_photons',
 ]
-titles = [f'condition#{i}' for i in range(len(transit_conditions))]
+titles = []
 
 for i, transit_condition in enumerate(transit_conditions):
+    titles.append(f'condition#{i}')
     cond = relevant_for_condition[i] & transit_condition_met[i]
     condition_summary.append([])
     condition_summary[-1].extend(
