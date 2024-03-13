@@ -29,7 +29,7 @@ class Cycle:
         for i, sequence in enumerate(tqdm(self.sequences, desc='Analyzing sequences', leave=False, disable=True)):
             sequence.calculate_result_vector(others=self.sequences, index=i)
         self.x_vals = self.sequences[0].x_vals
-        self.all_points = [(i, sequence.num_data_points.flatten, sequence.result_vector) for i, sequence in enumerate(self.sequences)]
+        self.all_points = [(i, sequence.num_data_points.flatten(), sequence.result_vector.flatten()) for i, sequence in enumerate(self.sequences)]
         self.num_data_points = np.sum([sequence.num_data_points for sequence in self.sequences], axis=0)
         self.sum_results = np.sum([sequence.result_vector for sequence in self.sequences], axis=0)
 

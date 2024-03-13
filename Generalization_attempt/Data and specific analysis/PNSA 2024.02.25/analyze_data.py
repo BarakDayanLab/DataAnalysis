@@ -4,6 +4,9 @@ from matplotlib import pyplot as plt
 from Generalization_attempt.util.Experiment import PlannedSequence, Experiment, Cycle
 from Generalization_attempt.util.Helpers import merge
 
+transit_conditions = [[1, 2], [2, 1], [2, 0, 2], [1, 1, 1], [1, 0, 1, 1], [1, 1, 0, 1]]
+transit_conditions = [np.array(x) for x in transit_conditions]
+max_length_condition = max([len(x) for x in transit_conditions])
 PULSE_TYPES = {
     'N': 0,
     'S': 1,
@@ -11,27 +14,27 @@ PULSE_TYPES = {
     's': 3,
 }
 experiment_data_file_paths = [
-    'Data/223709_Photon_TimeTags/output/Bright(1,2)/Bright_timetags.npz',
-    'Data/223709_Photon_TimeTags/output/Dark(3,4)/Dark_timetags.npz',
-    'Data/223709_Photon_TimeTags/output/North(8)/North_timetags.npz',
-    'Data/223709_Photon_TimeTags/output/FastSwitch(6,7)/FS_timetags.npz',
-    'Data/223709_Photon_TimeTags/output/South(5)/South_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/output/Bright(1,2)/Bright_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/output/Dark(3,4)/Dark_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/output/North(8)/North_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/output/FastSwitch(6,7)/FS_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/output/South(5)/South_timetags.npz',
 ]
 normalization_data_file_paths = [
-    'Data/222217_Photon_TimeTags/output/Bright(1,2)/Bright_timetags.npz',
-    'Data/222217_Photon_TimeTags/output/Dark(3,4)/Dark_timetags.npz',
-    'Data/222217_Photon_TimeTags/output/North(8)/North_timetags.npz',
-    'Data/222217_Photon_TimeTags/output/FastSwitch(6,7)/FS_timetags.npz',
-    'Data/222217_Photon_TimeTags/output/South(5)/South_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/Bright(1,2)/Bright_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/Dark(3,4)/Dark_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/North(8)/North_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/FastSwitch(6,7)/FS_timetags.npz',
+    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/South(5)/South_timetags.npz',
 ]
 NORTH_INDICES = [0, 1, 2]
 SOUTH_INDICES = [3, 4]
 
 experiment_datum_names = ['arr_0'] * len(experiment_data_file_paths)
 normalization_datum_names = ['arr_0'] * len(normalization_data_file_paths)
-pulses_location_data_file_path = 'Data/223709_Photon_TimeTags/input/sequences/Pulses_location_in_seq.npz'
+pulses_location_data_file_path = 'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/input/sequences/Pulses_location_in_seq.npz'
 pulses_location_datum_name = 'arr_0'
-north_sequence_data_file_path = 'Data/223709_Photon_TimeTags/input/sequences/North_sequence_vector.npz'
+north_sequence_data_file_path = 'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/input/sequences/North_sequence_vector.npz'
 north_sequence_datum_name = 'arr_0'
 
 SEQUENCE_LENGTH = len(np.load(north_sequence_data_file_path)[north_sequence_datum_name])
@@ -54,6 +57,8 @@ experiment_data = [
     [
         merge(*(experiment_data[idx][i] for idx in SOUTH_INDICES)) for i in range(len(experiment_data[0]))  # South
     ],
+    experiment_data[0],  # Bright
+    experiment_data[1],  # Dark
 ]
 
 normalization_data = [
@@ -71,6 +76,8 @@ normalization_data = [
         merge(*(normalization_data[idx][i] for idx in SOUTH_INDICES)) for i in range(len(normalization_data[0]))
         # South
     ],
+    normalization_data[0],  # Bright
+    normalization_data[1],  # Dark
 ]
 
 
@@ -83,21 +90,34 @@ class SprintPlannedSequence(PlannedSequence):
     length = SEQUENCE_LENGTH
 
     def bin(self):
-        self.bins = np.zeros((len(SEQUENCE_RULE), 2), dtype=int)
+        self.bins = np.zeros((len(SEQUENCE_RULE), 4), dtype=int)
         # self.types = [s[2] for s in SEQUENCE_RULE]
 
         i0_N = np.searchsorted(SEQUENCE_RULE[:, 0], self.timestamps[0] % self.length)
         i1_N = np.searchsorted(SEQUENCE_RULE[:, 1], self.timestamps[0] % self.length)
         i0_S = np.searchsorted(SEQUENCE_RULE[:, 0], self.timestamps[1] % self.length)
         i1_S = np.searchsorted(SEQUENCE_RULE[:, 1], self.timestamps[1] % self.length)
+        i0_B = np.searchsorted(SEQUENCE_RULE[:, 0], self.timestamps[2] % self.length)
+        i1_B = np.searchsorted(SEQUENCE_RULE[:, 1], self.timestamps[2] % self.length)
+        i0_D = np.searchsorted(SEQUENCE_RULE[:, 0], self.timestamps[3] % self.length)
+        i1_D = np.searchsorted(SEQUENCE_RULE[:, 1], self.timestamps[3] % self.length)
+
         relevant_N = (i0_N == i1_N + 1)
         relevant_S = (i0_S == i1_S + 1)
+        relevant_B = (i0_B == i1_B + 1)
+        relevant_D = (i0_D == i1_D + 1)
         # NORTH
         for i in i1_N[relevant_N]:
             self.bins[i, 0] += 1
         # SOUTH
         for i in i1_S[relevant_S]:
             self.bins[i, 1] += 1
+        # BRIGHT
+        for i in i1_S[relevant_B]:
+            self.bins[i, 2] += 1
+        # DARK
+        for i in i1_S[relevant_D]:
+            self.bins[i, 3] += 1
 
         # a photon measured in the north, induced by a transmission
         # self.north_transmission = self.bins[SEQUENCE_RULE[:, 2] == 'N', 0]
@@ -108,50 +128,67 @@ class SprintPlannedSequence(PlannedSequence):
         # a photon measured in the south, induced by a reflection
         self.south_reflections = self.bins[SEQUENCE_RULE[:, 2] == PULSE_TYPES['N'], 1]
 
+        self.detection_reflections = np.sum([self.north_reflections, self.south_reflections])
+
         self.sprint_transmissions = self.bins[-1, 0] if SEQUENCE_RULE[-1, 2] == PULSE_TYPES['n'] else self.bins[-1, 1]
         self.sprint_reflections = self.bins[-1, 0] if SEQUENCE_RULE[-1, 2] == PULSE_TYPES['s'] else self.bins[-1, 1]
+        self.bright_photons = self.bins[-1, 2]
+        self.dark_photons = self.bins[-1, 3]
 
     def calculate_result_vector(self, others=None, index=None):
         self.x_vals = np.array(
             [
-                [f'condition#{i}transit', f'condition#{i}transmission', f'condition#{i}reflection']
-                for i in range(2)
+                [
+                    f'condition#{i}transit',
+                    f'condition#{i}datapoint',
+                    f'condition#{i}transmission',
+                    f'condition#{i}reflection',
+                    f'condition#{i}Bright',
+                    f'condition#{i}Dark',
+                ]
+                for i in range(len(transit_conditions))
             ]
         )
         self.result_vector = np.zeros(self.x_vals.shape)
         self.num_data_points = np.zeros(self.x_vals.shape)
 
-        if index == len(others) - 1:
+        relevant_index = (index + 1 >= max_length_condition) & (index + max_length_condition <= len(others))
+        if not relevant_index:
             return
-        next = others[index + 1]
 
-        reflections = np.sum([self.north_reflections, self.south_reflections])
-        next_reflections = np.sum([next.north_reflections, next.south_reflections])
         last_detection_pulse_reflected_photons = self.bins[-2, 0] if SEQUENCE_RULE[-2, 2] == PULSE_TYPES['S'] else \
             self.bins[-2, 1]
         sprint_photons = np.sum([self.sprint_transmissions, self.sprint_reflections])
 
         # print(f'index: {index}, reflections: {reflections}, sprint_photons: {sprint_photons}')
 
-        condition = 0
-        if (last_detection_pulse_reflected_photons >= 1) and (reflections >= 1) and (next_reflections >= 1):
-            self.num_data_points[condition][0] += 1
-            self.result_vector[condition][0] += 1
-            if sprint_photons == 1:
-                self.result_vector[condition][1] += self.sprint_transmissions
-                self.num_data_points[condition][1] += self.sprint_transmissions
-                self.result_vector[condition][2] += self.sprint_reflections
-                self.num_data_points[condition][2] += self.sprint_reflections
-        condition = 1
-        if (last_detection_pulse_reflected_photons >= 1) and \
-                (((reflections >= 2) and (next_reflections >= 1)) or ((reflections >= 1) and (next_reflections >= 2))):
-            self.num_data_points[condition][0] += 1
-            self.result_vector[condition][0] += 1
-            if sprint_photons == 1:
-                self.result_vector[condition][1] += self.sprint_transmissions
-                self.num_data_points[condition][1] += self.sprint_transmissions
-                self.result_vector[condition][2] += self.sprint_reflections
-                self.num_data_points[condition][2] += self.sprint_reflections
+        for condition_index in range(len(transit_conditions)):
+            condition = transit_conditions[condition_index]
+            reflections = np.array(
+                [others[i].detection_reflections for i in range(index - len(condition) + 1, index + len(condition))])
+            reflections = np.lib.stride_tricks.sliding_window_view(reflections, len(condition))
+            transit_condition_met = np.any([np.all(reflections[i] >= condition) for i in range(len(reflections))])
+            # transit_condition_met = None # there was a transit based on this condition
+
+            if not transit_condition_met:
+                return
+            self.num_data_points[condition_index][0] += 1
+            self.result_vector[condition_index][0] += 1
+            if not (last_detection_pulse_reflected_photons >= 1):
+                return
+            self.num_data_points[condition_index][1] += 1
+            self.result_vector[condition_index][1] += 1
+            if not (sprint_photons >= 1):
+                return
+            self.num_data_points[condition_index][4] += ((self.bright_photons + self.dark_photons) > 0)
+            self.num_data_points[condition_index][5] += ((self.bright_photons + self.dark_photons) > 0)
+            self.result_vector[condition_index][4] += self.bright_photons
+            self.result_vector[condition_index][5] += self.dark_photons
+            if not (sprint_photons == 1):
+                self.result_vector[condition_index][2] += self.sprint_transmissions
+                self.num_data_points[condition_index][2] += self.sprint_transmissions
+                self.result_vector[condition_index][3] += self.sprint_reflections
+                self.num_data_points[condition_index][3] += self.sprint_reflections
 
 
 experiment = Experiment(experiment_data=experiment_data, cycle_class=SprintCycle,
