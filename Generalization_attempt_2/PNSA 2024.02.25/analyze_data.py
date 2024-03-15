@@ -22,26 +22,26 @@ experiment_data_file_paths = [
     'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/output/FastSwitch(6,7)/FS_timetags.npz',
     'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/output/South(5)/South_timetags.npz',
 ]
-normalization_data_file_paths = [
-    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/Bright(1,2)/Bright_timetags.npz',
-    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/Dark(3,4)/Dark_timetags.npz',
-    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/North(8)/North_timetags.npz',
-    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/FastSwitch(6,7)/FS_timetags.npz',
-    'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/South(5)/South_timetags.npz',
-]
-BRIGHT_INDEX = 0
+# normalization_data_file_paths = [
+#     'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/Bright(1,2)/Bright_timetags.npz',
+#     'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/Dark(3,4)/Dark_timetags.npz',
+#     'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/North(8)/North_timetags.npz',
+#     'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/FastSwitch(6,7)/FS_timetags.npz',
+#     'Data/173049_Photon_TimeTags/Iter_1_Seq_1__Without Atoms/output/South(5)/South_timetags.npz',
+# ]
+BRIGHT_INDEX = 0  # For the input file paths (experiment_data_file_paths), which file is for BRIGHT port
 DARK_INDEX = 1
 NORTH_INDICES = [0, 1, 2]
 SOUTH_INDICES = [3, 4]
 
 experiment_datum_names = ['arr_0'] * len(experiment_data_file_paths)
-normalization_datum_names = ['arr_0'] * len(normalization_data_file_paths)
+# normalization_datum_names = ['arr_0'] * len(normalization_data_file_paths)
 pulses_location_data_file_path = 'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/input/sequences/Pulses_location_in_seq.npz'
 pulses_location_datum_name = 'arr_0'
 north_sequence_data_file_path = 'Data/173049_Photon_TimeTags/Iter_1_Seq_2__With Atoms/input/sequences/North_sequence_vector.npz'
 north_sequence_datum_name = 'arr_0'
 
-SEQUENCE_LENGTH = len(np.load(north_sequence_data_file_path)[north_sequence_datum_name])
+SEQUENCE_LENGTH = len(np.load(north_sequence_data_file_path)[north_sequence_datum_name])  # [ns]
 CYCLE_LENGTH = int(8e6)  # [ns], = 8ms
 CYCLE_LENGTH = int((CYCLE_LENGTH // SEQUENCE_LENGTH) * SEQUENCE_LENGTH)
 seq_rule_temp = np.load(pulses_location_data_file_path)[pulses_location_datum_name]
@@ -54,11 +54,14 @@ experiment_data = [
     for experiment_data_file_path, experiment_datum_name in zip(experiment_data_file_paths, experiment_datum_names)
 ]
 
+LAST_DET_PULSE_INDEX = 5  # TODO: this with code
+SECOND_SPRINT_PULSE_INDEX = -1
+FIRST_SPRINT_PULSE_INDEX = -2
+
 # ANALYZE DATA
 bins = SEQUENCE_RULE[:, :2].flatten()
 binned_experiment_data = bin_and_reshape(experiment_data, sequence_length=SEQUENCE_LENGTH, cycle_length=CYCLE_LENGTH,
                                          bins=bins)
-
 # binned_experiment_data has shape [number of streams, # of cycles, # of seq per cycle, # bins per seq]
 
 # general binning
@@ -73,11 +76,12 @@ transit_condition_met = np.zeros((len(transit_conditions), *reflections.shape), 
 relevant_for_condition = np.ones((len(transit_conditions), *reflections.shape), dtype=bool)
 for i, transit_condition in enumerate(transit_conditions):
     window_size = len(transit_condition)
-    # relevant_for_condition[i] = np.ones(reflections.shape, dtype=bool)
-    relevant_for_condition[i, :, :window_size - 1] = 0
+    relevant_for_condition[i, :,
+    :window_size - 1] = 0  # left edge (beginning of cycle) is irrelevant where the whole window didn't happen
     relevant_for_condition[i, :, -window_size + 1:] = 0
 
     reshaped = np.lib.stride_tricks.sliding_window_view(reflections, (1, window_size))
+    # reshaped has shape [# of cycles, # of seq per cycle - window_size + 1, 1, window_size]
     temp = np.all(reshaped >= transit_condition, axis=(2, 3))
     temp = np.concatenate((
         np.zeros((temp.shape[0], window_size - 1), dtype=bool),
@@ -86,16 +90,19 @@ for i, transit_condition in enumerate(transit_conditions):
     ), axis=1)
     reshaped = np.lib.stride_tricks.sliding_window_view(temp, (1, window_size))
     transit_condition_met[i] = np.any(reshaped, axis=(2, 3))
+    # if any shift allows meeting a condition for the transit, then transit_condition_met is True
+    # TODO: possibly change the concatenate to window_size, temp, window_size-1; and change the subsequent sliding
+    #  window to window_size-1, to take into account that the detection pulses happen b4 the sprint pulses, and a
+    #  transit is defined in between detection pulses' reflections
+    #  This probably also requires changing the relevant_for_condition to have 0s up to window_size instead of
+    #  window_size-1
 
-LAST_DET_PULSE_INDEX = 5  # TODO: this with code
 last_det_pulse_is_north = SEQUENCE_RULE[LAST_DET_PULSE_INDEX, 2] == PULSE_TYPES['N']
 if last_det_pulse_is_north:
     last_detection_pulse_reflection = (N2S_by_seq[:, :, -1] > 0)
 else:
     last_detection_pulse_reflection = (S2N_by_seq[:, :, -1] > 0)
 
-SECOND_SPRINT_PULSE_INDEX = -1
-FIRST_SPRINT_PULSE_INDEX = -2
 total_sprint_single_photon = (
         np.sum(binned_experiment_data[:, :, :, (FIRST_SPRINT_PULSE_INDEX, SECOND_SPRINT_PULSE_INDEX)],
                axis=(0, 3)) == 1)

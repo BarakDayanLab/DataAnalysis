@@ -99,15 +99,19 @@ def fit_func(f, p_in_rect, g0, sigma_y, c_decay_r, alpha_squared, k_extrinsic, k
 
 transmission_onres = 0.01
 k_extrinsic = fit_zero(
-    lambda k_ex: transmission_onres - transmission_g0(f=0, k_ex=k_ex, k_i=k_intrinsic, h=h).flatten(), k_intrinsic + 1).flatten()
+    lambda k_ex: transmission_onres - transmission_g0(f=0, k_ex=k_ex, k_i=k_intrinsic, h=h).flatten(),
+    k_intrinsic + 1).flatten()
 
-
-data = pd.read_csv('Archive/Data and specific analysis/Spectrum 2023.08.30/output.csv')
-x = data['x'].to_numpy()
-y = data['y'].to_numpy()
+data = pd.read_csv('Data/output.csv')
+x = data['detunings'].to_numpy()
+y = (data['experiment_sums'].to_numpy() / data['experiment_counts'].to_numpy() / 500) / (
+            data['normalization_sums'].to_numpy() / data['normalization_counts'].to_numpy() / 50)
+x = x[:-1]
+y = y[:-1]
 popt, pcov = curve_fit(lambda *x: fit_func(*x, k_extrinsic, k_intrinsic, gamma, h), x, y,
-                       p0=[0.7, 40.0, 300.0, (2 * np.pi / 780), 1.0], bounds=([0, 0, 0, 0, 0], [1, 1000, 1000, 1000, 10]))
-
+                       p0=[0.1, 30.0, 200.0, (2 * np.pi / 780), 0.2],
+                       bounds=([0, 0, 0, 0, 0], [1, 1000, 1000, 1000, 10]))
+print(popt)
 dense_x = np.linspace(x[0], x[-1], 500)
 plt.scatter(x, y, label='data')
 plt.plot(dense_x, fit_func(dense_x, *popt, k_extrinsic, k_intrinsic, gamma, h), 'r-', label='fit')
@@ -117,6 +121,3 @@ plt.ylabel('Counts after passing test, normalized by counts for no cavity')
 plt.title('Counts after passing test vs detuning frequency')
 plt.ylim([0, 1.1 * np.max(y)])
 plt.show()
-
-print(popt)
-print(pcov)
