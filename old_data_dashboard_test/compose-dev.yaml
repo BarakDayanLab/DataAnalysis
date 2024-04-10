@@ -1,0 +1,13 @@
+version: '0.1'
+
+services:
+  app:
+    build: .
+    volumes:
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    command: sleep infinity
+    environment:
+    - DISPLAY=$DISPLAY

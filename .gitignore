@@ -1,2 +1,7 @@
 .idea
 __pycache__
+venv
+*.npz
+*.mat
+*.csv
+/Generalization_attempt/Data and specific analysis/SPRINT 2024.01.28.22.37.09/Data/
