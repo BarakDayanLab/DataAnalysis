@@ -12,7 +12,8 @@ import pymsgbox
 class DictionaryBuilder:
 
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-    DATA_PATH = os.path.dirname(ROOT_DIR)
+    # DATA_PATH = os.path.dirname(ROOT_DIR)
+    DATA_PATH = os.path.dirname(os.path.dirname(ROOT_DIR))
 
     def first_index_containing_substring(self, the_list, substring):
         for i, s in enumerate(the_list):
