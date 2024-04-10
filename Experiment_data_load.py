@@ -1,5 +1,6 @@
 import os
 import shutil
+import json
 from os import listdir
 from os.path import isfile, join
 from os import walk
@@ -121,6 +122,20 @@ class DictionaryBuilder:
                 try:
                     folder[filename.split('.')[0]] = \
                         np.load(os.path.join(folder_path, filename), allow_pickle=True)["arr_0"]
+                except Exception as err:
+                    pass
+            elif filename.split('.')[1] == 'json':
+                data_name = filename.split('.')[0].split('_')[0]
+                for string in filename.split('.')[0].split('_')[1:]:
+                    if string != self.exp_date:
+                        data_name = data_name + '_' + string
+                    else:
+                        break
+                try:
+                    file = open(os.path.join(folder_path, filename))
+                    folder[data_name] = \
+                        json.load(file)
+                    file.close()
                 except Exception as err:
                     pass
         return folder

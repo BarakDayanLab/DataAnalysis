@@ -3,7 +3,6 @@ import numpy as np
 import os
 import pymsgbox
 
-
 def popupbox_inquiry(message=''):
 
     if len(message) > 0:
@@ -90,4 +89,28 @@ if __name__ == '__main__':
     # exp_time = '011453'
     # data = Experiment_data_load.DictionaryBuilder(exp_type, exp_date, exp_time)
     # pass
+    exp_sequence_len = len(Exp_dict['input']['sequences']['South_sequence_vector'])
 
+    folded_tt_S = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_N = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_BP = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_DP = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_FS = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_S_directional = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_N_directional = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_BP_timebins = np.zeros(exp_sequence_len, dtype=int)
+    folded_tt_DP_timebins = np.zeros(exp_sequence_len, dtype=int)
+
+    for x in [elem for lst in Exp_dict['output']['South(5)']['South_timetags'] for elem in lst]:
+        folded_tt_S[x % exp_sequence_len] += 1
+    for x in [elem for lst in Exp_dict['output']['North(8)']['North_timetags'] for elem in lst]:
+        folded_tt_N[x % exp_sequence_len] += 1
+    for x in [elem for lst in Exp_dict['output']['Bright(1,2)']['Bright_timetags'] for elem in lst]:
+        folded_tt_BP[x % exp_sequence_len] += 1
+    for x in [elem for lst in Exp_dict['output']['Dark(3,4)']['Dark_timetags'] for elem in lst]:
+        folded_tt_DP[x % exp_sequence_len] += 1
+    for x in [elem for lst in Exp_dict['output']['FastSwitch(6,7)']['FS_timetags'] for elem in lst]:
+        folded_tt_FS[x % exp_sequence_len] += 1
+
+    folded_tt_S_directional = (np.array(folded_tt_S) + np.array(folded_tt_FS))
+    folded_tt_N_directional = (np.array(folded_tt_N) + np.array(folded_tt_BP) + np.array(folded_tt_DP))
