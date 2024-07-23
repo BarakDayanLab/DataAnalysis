@@ -1,0 +1,94 @@
+{
+    "flr_batch": {
+        "value_name": "FLR_res"
+    },
+    "exp_timestr_batch": {
+        "value_name": "sampling_timestamp"
+    },
+    "lock_err_batch": {
+        "value_name": "lock_err"
+    },
+    "k_ex_batch": {
+        "value_name": "k_ex"
+    },
+    "interference_error_batch": {
+        "value_name": "interference_error"
+    },
+    "tt_measure_batch": {
+        "value_name": "tt_measure"
+    },
+    "tt_S_measure_batch": {
+        "value_name": "tt_S_measure"
+    },
+    "tt_N_measure_batch": {
+        "value_name": "tt_N_measure"
+    },
+
+    "tt_DP_measure_batch": {
+        "value_name": "tt_DP_measure"
+    },
+    "tt_BP_measure_batch": {
+        "value_name": "tt_BP_measure"
+    },
+    "tt_FS_measure_batch": {
+        "value_name": "tt_FS_measure"
+    },
+
+    "MZ_BP_counts_balancing_batch": {
+        "value_name": "MZ_BP_counts_res_value_0"
+    },
+    "MZ_BP_counts_balancing_check_batch": {
+        "value_name": "MZ_BP_counts_res_value_1"
+    },
+
+    "MZ_DP_counts_balancing_batch": {
+        "value_name": "MZ_DP_counts_res_value_0"
+    },
+    "MZ_DP_counts_balancing_check_batch": {
+        "value_name": "MZ_DP_counts_res_value_1"
+    },
+
+    "Phase_Correction_vec_batch": {
+        "value_name": "Phase_Correction_vec"
+    },
+    "Phase_Correction_min_vec_batch": {
+        "value_name": "Phase_Correction_min_vec"
+    },
+    "Phase_Correction_value": {
+        "value_name": "Phase_Correction_value"
+    },
+    "MZ_S_tot_counts": {
+        "value_name": "MZ_S_tot_counts"
+    },
+
+    "all_transits_seq_indx_batch": {
+        "value_name": "all_transits_seq_indx"
+    },
+    "seq_with_data_points_batch": {
+        "value_name": "seq_with_data_points"
+    },
+    "reflection_SPRINT_data_batch": {
+        "value_name": "reflection_SPRINT_data"
+    },
+    "transmission_SPRINT_data_batch": {
+        "value_name": "transmission_SPRINT_data"
+    },
+    "BP_counts_SPRINT_data_batch": {
+        "value_name": "BP_counts_SPRINT_data"
+    },
+    "DP_counts_SPRINT_data_batch": {
+        "value_name": "DP_counts_SPRINT_data"
+    },
+    "num_of_total_SPRINT_reflections_batch": {
+        "value_name": "num_of_total_SPRINT_reflections"
+    },
+    "num_of_total_SPRINT_transmissions_batch": {
+        "value_name": "num_of_total_SPRINT_transmissions"
+    },
+    "num_of_total_SPRINT_BP_counts_batch": {
+        "value_name": "num_of_total_SPRINT_BP_counts"
+    },
+    "num_of_total_SPRINT_DP_counts_batch": {
+        "value_name": "num_of_total_SPRINT_DP_counts"
+    }
+}

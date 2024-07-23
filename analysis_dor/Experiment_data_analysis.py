@@ -4,6 +4,11 @@ import os
 import math
 import pymsgbox
 import matplotlib.pyplot as plt
+from tkinter import *
+from tkinter import messagebox
+from tkinter.filedialog import askdirectory
+from Utils import Utils
+
 
 class experiment_data_analysis:
     def popupbox_inquiry(self, message=''):
@@ -34,8 +39,9 @@ class experiment_data_analysis:
             if date is None:
                 break
             elif not date.isnumeric():
-                date = pymsgbox.prompt(text='Please enter the date of the experiment \nall characters must be integers!',
-                                       title='Experiment data loading', default='For example: 20230719')
+                date = pymsgbox.prompt(
+                    text='Please enter the date of the experiment \nall characters must be integers!',
+                    title='Experiment data loading', default='For example: 20230719')
             elif len(date) != 8:
                 date = pymsgbox.prompt(text='Please enter the date of the experiment \nmust be 8 characters!',
                                        title='Experiment data loading', default='For example: 20230719')
@@ -52,8 +58,9 @@ class experiment_data_analysis:
             if time is None:
                 break
             elif not time.isnumeric():
-                time = pymsgbox.prompt(text='Please enter the time of the experiment \nall characters must be integers!',
-                                       title='Experiment data loading', default='For example: 115944')
+                time = pymsgbox.prompt(
+                    text='Please enter the time of the experiment \nall characters must be integers!',
+                    title='Experiment data loading', default='For example: 115944')
             elif len(time) != 6:
                 time = pymsgbox.prompt(text='Please enter the time of the experiment \nmust be 6 characters!',
                                        title='Experiment data loading', default='For example: 115944')
@@ -79,18 +86,22 @@ class experiment_data_analysis:
                 SPRINT_pulses_per_seq += 1
         return detection_pulses_per_seq, SPRINT_pulses_per_seq
 
-    def init_params_for_experiment(self):
+    def init_params_for_experiment(self, dict):
 
-        self.sequence_len = len(self.Exp_dict['input']['sequences']['South_sequence_vector'])
-        self.M_window = self.Exp_dict['meta_data']['Exp_config_values']['M_window']
-        self.Pulses_location_in_seq = self.Exp_dict['input']['sequences']['Pulses_location_in_seq']
+        self.sequence_len = len(dict['input']['sequences']['South_sequence_vector'])
+        config_values_key = list(key for key in dict['meta_data'].keys() if 'config' in key)[0]
+        self.M_window = dict['meta_data'][config_values_key]['M_window']
+        self.M_time = self.M_window
+        self.Pulses_location_in_seq = dict['input']['sequences']['Pulses_location_in_seq']
         self.MZ_delay = 250  # [ns]
 
         self.number_of_PNSA_sequences = math.ceil(self.M_window / self.sequence_len)
 
         self.number_of_detection_pulses_per_seq, self.number_of_SPRINT_pulses_per_seq = self.number_of_pulses_per_seq()
 
-        self.end_of_det_pulse_in_seq = int(self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1][1]) + 6
+        self.end_of_det_pulse_in_seq = int(
+            self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq - 1][1]) + 6
+
         # define empty variables
 
         self.tt_measure = []
@@ -98,6 +109,17 @@ class experiment_data_analysis:
 
         self.folded_transmission = np.zeros(self.sequence_len)
         self.folded_reflection = np.zeros(self.sequence_len)
+
+        # Initiate folded cumulative tt "N", "S", BP, DP, FS
+        self.folded_tt_S_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_N_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_BP_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_DP_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_FS_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_S_directional_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_N_directional_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_BP_timebins_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
+        self.folded_tt_DP_timebins_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
 
         self.tt_S_binning = np.zeros(self.number_of_PNSA_sequences + 1)
         self.seq_transit_events_live = np.zeros(self.number_of_PNSA_sequences)
@@ -108,9 +130,9 @@ class experiment_data_analysis:
         self.num_of_det_transmissions_per_seq_accumulated = np.zeros(self.number_of_PNSA_sequences)
 
         num_of_seq_per_count = 50
-        self.num_of_BP_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences//num_of_seq_per_count)
-        self.num_of_DP_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences//num_of_seq_per_count)
-        self.num_of_S_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences//num_of_seq_per_count)
+        self.num_of_BP_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences // num_of_seq_per_count)
+        self.num_of_DP_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences // num_of_seq_per_count)
+        self.num_of_S_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences // num_of_seq_per_count)
 
         self.num_of_det_reflections_per_seq_S = np.zeros(self.number_of_PNSA_sequences)
         self.num_of_det_reflections_per_seq_N = np.zeros(self.number_of_PNSA_sequences)
@@ -128,6 +150,20 @@ class experiment_data_analysis:
         self.BP_counts_SPRINT_data_without_transits = []
         self.DP_counts_SPRINT_data_without_transits = []
 
+    def ingest_time_tags(self, dict, cycle):
+        """
+        Takes all the raw results we got from the streams and does some processing on them - preparing "measures"
+        """
+
+        # ------------------------------------------
+        # Unify detectors and windows within detectors and create vector of tt's for each direction (bright port, dark port, north, south and from FS) and sort them
+        # ------------------------------------------
+        self.tt_BP_measure = dict['output']['Bright(1,2)']['Bright_timetags'][cycle]
+        self.tt_DP_measure = dict['output']['Dark(3,4)']['Dark_timetags'][cycle]
+        self.tt_N_measure = dict['output']['North(8)']['North_timetags'][cycle]
+        self.tt_S_measure = dict['output']['South(5)']['South_timetags'][cycle]
+        self.tt_FS_measure = dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]
+
     def fold_tt_histogram(self, exp_sequence_len):
 
         self.folded_tt_S = np.zeros(exp_sequence_len, dtype=int)
@@ -141,15 +177,25 @@ class experiment_data_analysis:
         self.folded_tt_DP_timebins = np.zeros(exp_sequence_len, dtype=int)
 
         for x in [elem for lst in self.Exp_dict['output']['South(5)']['South_timetags'] for elem in lst]:
-            self.folded_tt_S[x % exp_sequence_len] += 1
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_S[x % exp_sequence_len] += 1
+            # self.folded_tt_S[x % exp_sequence_len] += 1
         for x in [elem for lst in self.Exp_dict['output']['North(8)']['North_timetags'] for elem in lst]:
-            self.folded_tt_N[x % exp_sequence_len] += 1
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_N[x % exp_sequence_len] += 1
+            # self.folded_tt_N[x % exp_sequence_len] += 1
         for x in [elem for lst in self.Exp_dict['output']['Bright(1,2)']['Bright_timetags'] for elem in lst]:
-            self.folded_tt_BP[x % exp_sequence_len] += 1
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_BP[x % exp_sequence_len] += 1
+            # self.folded_tt_BP[x % exp_sequence_len] += 1
         for x in [elem for lst in self.Exp_dict['output']['Dark(3,4)']['Dark_timetags'] for elem in lst]:
-            self.folded_tt_DP[x % exp_sequence_len] += 1
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_DP[x % exp_sequence_len] += 1
+            # self.folded_tt_DP[x % exp_sequence_len] += 1
         for x in [elem for lst in self.Exp_dict['output']['FastSwitch(6,7)']['FS_timetags'] for elem in lst]:
-            self.folded_tt_FS[x % exp_sequence_len] += 1
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_FS[x % exp_sequence_len] += 1
+            # self.folded_tt_FS[x % exp_sequence_len] += 1
 
         self.folded_tt_S_directional = (np.array(self.folded_tt_S) + np.array(self.folded_tt_FS))
         # self.folded_tt_N_directional = self.folded_tt_N
@@ -202,7 +248,7 @@ class experiment_data_analysis:
         self.num_of_det_transmissions_per_seq_S = np.zeros(self.number_of_PNSA_sequences)
         self.num_of_det_transmissions_per_seq_N = np.zeros(self.number_of_PNSA_sequences)
 
-        self.num_of_det_reflections_per_seq_S_,\
+        self.num_of_det_reflections_per_seq_S_, \
         self.num_of_det_reflections_per_seq_N_, \
         self.num_of_det_transmissions_per_seq_S_, \
         self.num_of_det_transmissions_per_seq_N_ = [
@@ -356,39 +402,269 @@ class experiment_data_analysis:
                     self.num_of_det_reflections_per_seq_N[seq_num] += self.filter_N[tt_inseq]
                     self.num_of_det_transmissions_per_seq_S[seq_num] += self.filter_S[tt_inseq]
 
+    def experiment_calculations(self):
+
+        self.divide_tt_to_reflection_trans_extended()
+
+        self.num_of_det_reflections_per_seq = self.num_of_det_reflections_per_seq_S \
+                                              + self.num_of_det_reflections_per_seq_N
+        self.num_of_det_transmissions_per_seq = self.num_of_det_transmissions_per_seq_S \
+                                                + self.num_of_det_transmissions_per_seq_N
+
+        # fold reflections and transmission
+        self.fold_tt_histogram(exp_sequence_len=self.sequence_len)
+
+        pass
+
+    def calculate_running_averages(self, cycle_number):
+        self.folded_tt_S_cumulative_avg = Utils.running_average(self.folded_tt_S_cumulative_avg, self.folded_tt_S, cycle_number)
+        self.folded_tt_N_cumulative_avg = Utils.running_average(self.folded_tt_N_cumulative_avg, self.folded_tt_N, cycle_number)
+        self.folded_tt_BP_cumulative_avg = Utils.running_average(self.folded_tt_BP_cumulative_avg, self.folded_tt_BP, cycle_number)
+        self.folded_tt_DP_cumulative_avg = Utils.running_average(self.folded_tt_DP_cumulative_avg, self.folded_tt_DP, cycle_number)
+        self.folded_tt_FS_cumulative_avg = Utils.running_average(self.folded_tt_FS_cumulative_avg, self.folded_tt_FS, cycle_number)
+        self.folded_tt_S_directional_cumulative_avg = Utils.running_average(self.folded_tt_S_directional_cumulative_avg, self.folded_tt_S_directional, cycle_number)
+        self.folded_tt_N_directional_cumulative_avg = Utils.running_average(self.folded_tt_N_directional_cumulative_avg, self.folded_tt_N_directional, cycle_number)
+        self.folded_tt_BP_timebins_cumulative_avg = Utils.running_average(self.folded_tt_BP_timebins_cumulative_avg, self.folded_tt_BP_timebins, cycle_number)
+        self.folded_tt_DP_timebins_cumulative_avg = Utils.running_average(self.folded_tt_DP_timebins_cumulative_avg, self.folded_tt_DP_timebins, cycle_number)
+        pass
+
+    def find_transit_events(self, cond_list=None, minimum_number_of_seq_detected=2):
+        '''
+        Find transits of atoms by searching events that satisfy the number of reflected photons per sequence required at
+        each cond place with minimum number of conditions needed to be satisfied, defined by the minimum_number_of_seq_detected.
+        For example:
+        given cond=[2,1,2] and minimum_number_of_seq_detected=2, if in 3 consecutive sequences we get either 2-1-0 or
+        0-2-1 or 2-0-2, the condition is satisfied and it is defined as a transit.
+        :param cond: The condition that need to be met for number of reflections per detection pulses in sequence.
+        :param minimum_number_of_seq_detected: The number of terms needed to be satisfied per cond vector.
+        :return:
+        '''
+
+        if cond_list is None:
+            cond_list = [[2, 2]]
+
+        self.all_transits_seq_indx_per_cond = []  # Array of the sequence indexes of all recognized transits per cycle. The length of it will be the number of all transits at the current cycle.
+        all_transits_seq_indx = []
+
+        # Find all tansits for each of the conditions given in the list:
+        for cond in cond_list:
+            current_transit = []
+            for i in range(self.number_of_PNSA_sequences - len(cond) + 1):
+                cond_check = (self.num_of_det_reflections_per_seq[i:(i + len(cond))] >= cond).astype(int)
+                if sum(cond_check) >= minimum_number_of_seq_detected:
+                    # TODO: ask dor (08.01.24) - what happens at [0,4,0]? and why including the middle at [2,0,2]?
+                    # adding to current transit the indices from first element satisfing the condition to the last element checked.
+                    # for example:
+                    # if the condition is [1,1,1] and for i=7000 the reflections were [0(i=7000),1 (i=7001),1 (i=7002)]
+                    # than current transit would add [7001,7002]
+                    current_transit = np.unique(
+                        current_transit + [*range(i + np.where(cond_check != 0)[0][0], (i + len(cond)))]).tolist()
+                elif len(current_transit) > 1:
+                    current_transit = current_transit[
+                                      :np.where(self.num_of_det_reflections_per_seq[current_transit] >= min(cond))[0][
+                                           -1] + 1]
+                    if len(all_transits_seq_indx) > 0:
+                        if bool(set(current_transit) & set(all_transits_seq_indx[-1])):
+                            current_transit = all_transits_seq_indx[-1] + current_transit[1:]
+                            all_transits_seq_indx = all_transits_seq_indx[:-1]
+                    all_transits_seq_indx.append(current_transit)
+                    current_transit = []
+            if len(current_transit) > 1:
+                current_transit = current_transit[
+                                  :np.where(self.num_of_det_reflections_per_seq[current_transit] >= min(cond))[0][-1] + 1]
+                if all_transits_seq_indx:
+                    if bool(set(current_transit) & set(all_transits_seq_indx[-1])):
+                        current_transit = all_transits_seq_indx[-1] + current_transit[1:]
+                        all_transits_seq_indx = all_transits_seq_indx[:-1]
+                all_transits_seq_indx.append(current_transit)
+
+        # Remove duplicate values from the list of transits and merge consecutive transits:
+        if len(all_transits_seq_indx) > 0:
+            # remove duplicate lists:
+            all_transits_seq_indx = sorted(list(set(tuple(transit) for transit in all_transits_seq_indx)), key=lambda x: x[0])
+            all_transits_seq_indx = [sorted(list(x_)) for x_ in all_transits_seq_indx]
+            # merge all lists that are contained or are consecutive to another list:
+            for i in range(len(all_transits_seq_indx) - 1, 0, -1):
+                if all_transits_seq_indx[i][0] <= all_transits_seq_indx[i - 1][-1] + 1:
+                    all_transits_seq_indx[i - 1] = sorted(list(set(all_transits_seq_indx[i - 1] + all_transits_seq_indx[i])))
+                    all_transits_seq_indx.pop(i)
+        self.all_transits_seq_indx_per_cond.append(all_transits_seq_indx)
+
+    def analyze_SPRINT_data_points(self, all_transits_seq_indx, SPRINT_pulse_number=[1], background=False):
+        '''
+        For a given vector of sequence indexes, find the relevant data points for SPRINT pulse and analyze results.
+        :param all_transits_seq_indx: The vector of indexes of sequences that need to be analyzed.
+        :param SPRINT_pulse_number: The SPRINT pulse number for which we want to check the results.
+        :param background: If the check is for background data and not for actual transits, the "potential data" check,
+                           for which we condition the relevance of the data if we get at least 1 reflection from the
+                           last detection pulse, is irrelevant.
+        '''
+        reflection_SPRINT_data = []  # Array of vectors with data on the number of reflections per SPRINT pulse in sequence.
+        transmission_SPRINT_data = []  # Array of vectors with data on the number of transmissions per SPRINT pulse in sequence.
+        seq_with_data_points = []
+        BP_counts_SPRINT_data = []
+        DP_counts_SPRINT_data = []
+
+        if len(self.Pulses_location_in_seq) > 0:
+            for transit in all_transits_seq_indx:
+                for seq_indx in transit[:-1]:
+                    # Checking potential for data point by looking for a single photon at the reflection of the last
+                    # detection pulse:
+                    potential_data = False if not background else True
+                    if self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1][2] == 'N' and \
+                       len(self.num_of_det_reflections_per_seq_N_[seq_indx][-1]) >= 1:
+                        potential_data = True
+                        # self.potential_data += 1
+                    elif self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1][2] == 'S' and \
+                            len(self.num_of_det_reflections_per_seq_S_[seq_indx][-1]) >= 1:
+                        potential_data = True
+                        # self.potential_data += 1
+                    # Getting SPRINT data if the SPRINT pulse has one photon in the reflection or transmission
+                    if potential_data and len(self.Pulses_location_in_seq) > self.number_of_detection_pulses_per_seq:
+                        if self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1+SPRINT_pulse_number[0]][2] == 'n':
+                            transmissions = 0
+                            reflections = 0
+                            for sprint_pulse in SPRINT_pulse_number:
+                                transmissions += len(self.num_of_SPRINT_transmissions_per_seq_N_[seq_indx][sprint_pulse-1])
+                                reflections += len(self.num_of_SPRINT_reflections_per_seq_N_[seq_indx][sprint_pulse-1])
+                            if (transmissions + reflections) == 1:
+                                seq_with_data_points.append(seq_indx)
+                                reflection_SPRINT_data.append(reflections)
+                                transmission_SPRINT_data.append(transmissions)
+                            if (transmissions + reflections) > 0:
+                                BP_counts_SPRINT_data.append(len(self.num_of_BP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
+                                DP_counts_SPRINT_data.append(len(self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
+                        elif self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1+SPRINT_pulse_number[0]][2] == 's':
+                            transmissions = 0
+                            reflections = 0
+                            for sprint_pulse in SPRINT_pulse_number:
+                                transmissions += len(self.num_of_SPRINT_transmissions_per_seq_S_[seq_indx][sprint_pulse-1])
+                                reflections += len(self.num_of_SPRINT_reflections_per_seq_S_[seq_indx][sprint_pulse-1])
+                            if (transmissions + reflections) == 1:
+                                seq_with_data_points.append(seq_indx)
+                                reflection_SPRINT_data.append(reflections)
+                                transmission_SPRINT_data.append(transmissions)
+                            if (transmissions + reflections) > 0:
+                                BP_counts_SPRINT_data.append(len(self.num_of_BP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
+                                DP_counts_SPRINT_data.append(len(self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
+        return seq_with_data_points, reflection_SPRINT_data, transmission_SPRINT_data, BP_counts_SPRINT_data, DP_counts_SPRINT_data
+
+    def get_transit_data(self, transit_condition):
+        '''
+        Use the data loaded from the experiment to find atomic transits under different conditions and some data to
+        compare the conditions, such as, number of transits, transit length distribution and more...
+        :param list_of_conditions: List of lists, so that each condition is of the structure [[1,2],[2,1],[2,1,2],[2,2]]
+               and so on...
+        :return:
+        '''
+
+        self.find_transit_events(cond_list=transit_condition, minimum_number_of_seq_detected=2)
+
+        # Analyze SPRINT data during transits:
+        (self.seq_with_data_points, self.reflection_SPRINT_data, self.transmission_SPRINT_data,
+         self.BP_counts_SPRINT_data, self.DP_counts_SPRINT_data) = \
+            self.analyze_SPRINT_data_points(self.all_transits_seq_indx_per_cond, SPRINT_pulse_number=[1, 2],
+                                            background=False)  # Enter the index of the SPRINT pulse for which the data should be analyzed
+        # print(self.potential_data)
+        # Analyze SPRINT data when no transit occur:
+        self.all_seq_without_transits = [
+            np.delete(np.arange(0, self.number_of_PNSA_sequences, 1, dtype='int'),
+                      sum(self.all_transits_seq_indx_per_cond, [])).tolist()
+        ]
+        (_, self.reflection_SPRINT_data_without_transits, self.transmission_SPRINT_data_without_transits,
+         self.BP_counts_SPRINT_data_without_transits, self.DP_counts_SPRINT_data_without_transits) = \
+            self.analyze_SPRINT_data_points(self.all_seq_without_transits, SPRINT_pulse_number=[1, 2],
+                                            background=True)  # Enter the index of the SPRINT pulse for which the data should be analyzed
+
+        self.number_of_transits_live = len(self.all_transits_seq_indx_per_cond)
+        self.number_of_transits_total = len(
+            [vec for lst in self.batcher['all_transits_seq_indx_batch'] for vec in lst])
+
+        self.num_of_total_SPRINT_reflections = sum(self.reflection_SPRINT_data_without_transits)
+        self.num_of_total_SPRINT_transmissions = sum(self.transmission_SPRINT_data_without_transits)
+        self.num_of_total_SPRINT_BP_counts = sum(self.BP_counts_SPRINT_data_without_transits)
+        self.num_of_total_SPRINT_DP_counts = sum(self.DP_counts_SPRINT_data_without_transits)
 
     # Class's constructor
-    def __init__(self, exp_type='QRAM', exp_date='20230719', exp_time=None):
+    def __init__(self, exp_type='QRAM', exp_date='20230719', exp_time=None, transit_conditions=[[2, 1, 2]]):
 
-        self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
-        while True:
-            if self.exp_type is None or self.exp_date is None or self.exp_time is None:
-                option = pymsgbox.confirm('Missing an input, do you wish to retry?', 'Experiment data loading',
-                                          ['Yes please', 'No thanks'])
-                if option == 'Yes please':
-                    self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
-                else:
-                    break
+        # self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
+        # while True:
+        #     if self.exp_type is None or self.exp_date is None or self.exp_time is None:
+        #         option = pymsgbox.confirm('Missing an input, do you wish to retry?', 'Experiment data loading',
+        #                                   ['Yes please', 'No thanks'])
+        #         if option == 'Yes please':
+        #             self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
+        #         else:
+        #             break
+        #     else:
+        #         # print(exp_type, exp_date, exp_time)
+        #         self.data = Experiment_data_load.DictionaryBuilder(self.exp_type, self.exp_date, self.exp_time)
+        #         if self.data is None:
+        #             self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
+        #         else:
+        #             self.Exp_dict = self.data.load_files_to_dict(self.data.exp_path)
+        #             pymsgbox.alert(text='Experiment data is ready to use.', title='Success!')
+        #             break
+        #
+        # self.init_params_for_experiment()
+        # self.fold_tt_histogram(self.sequence_len)
+        # self.background_noise_N = ((sum(self.folded_tt_N[int(self.Pulses_location_in_seq[-1][1]):300]) +
+        #                             sum(self.folded_tt_BP[int(self.Pulses_location_in_seq[-1][1]):300]) +
+        #                             sum(self.folded_tt_DP[int(self.Pulses_location_in_seq[-1][1]):300])) /
+        #                            (300 - int(self.Pulses_location_in_seq[-1][
+        #                                           1])))  # Per [ns] * number_of_sequences_per_cycle * number_of_cycles
+        # # ((self.sequence_len - int(self.Pulses_location_in_seq[-1][1])) * len(self.Exp_dict['output']['South(5)']['South_timetags'])))  # Per [ns] * number_of_sequences_per_cycle
+        # self.background_noise_S = ((sum(self.folded_tt_S[int(self.Pulses_location_in_seq[-1][1]):300]) +
+        #                             sum(self.folded_tt_FS[int(self.Pulses_location_in_seq[-1][1]):300])) /
+        #                            (300 - int(self.Pulses_location_in_seq[-1][
+        #                                           1])))  # Per [ns] * number_of_sequences_per_cycle * number_of_cycles
+        # if self.Pulses_location_in_seq[0][2] == 'N':
+        #     print((sum(self.folded_tt_S_directional[
+        #                int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]) -
+        #            self.background_noise_S * (
+        #                        int(self.Pulses_location_in_seq[0][1]) - int(self.Pulses_location_in_seq[0][0]))) /
+        #           sum(self.folded_tt_N_directional[
+        #               int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]))
+        # else:
+        #     print((sum(self.folded_tt_N_directional[
+        #                int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]) -
+        #            self.background_noise_N * (
+        #                        int(self.Pulses_location_in_seq[0][1]) - int(self.Pulses_location_in_seq[0][0]))) /
+        #           sum(self.folded_tt_S_directional[
+        #               int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]))
+
+        self.transit_conditions = transit_conditions
+
+        # Open folder and load to dictionary
+        root = Tk()
+        self.exp_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
+        self.data = Experiment_data_load.DictionaryBuilder()
+        self.Exp_dict = self.data.load_files_to_dict(self.exp_data_path)
+        messagebox.showinfo(title='Success!', message='Experiment data is ready to use.')
+        root.destroy()
+
+        # Divide data to background and experiment data:
+        for key in list(self.Exp_dict.keys()):
+            if 'without' in key.lower():
+                self.Background_dict = self.Exp_dict[key]
             else:
-                # print(exp_type, exp_date, exp_time)
-                self.data = Experiment_data_load.DictionaryBuilder(self.exp_type, self.exp_date, self.exp_time)
-                if self.data is None:
-                    self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
-                else:
-                    self.Exp_dict = self.data.load_files_to_dict(self.data.exp_path)
-                    pymsgbox.alert(text='Experiment data is ready to use.', title='Success!')
-                    break
+                exp_key = key
+        self.Exp_dict = self.Exp_dict[exp_key]
 
-        self.init_params_for_experiment()
-        self.fold_tt_histogram(self.sequence_len)
-        if self.Pulses_location_in_seq[0][2] == 'N':
-            print(sum(self.folded_tt_S_directional[int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])])/
-                  sum(self.folded_tt_N_directional[int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]))
-        else:
-            print(sum(self.folded_tt_N_directional[int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])])/
-                  sum(self.folded_tt_S_directional[int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]))
+        # background analysis:
+        # check number of cycles in experiment:
+        number_of_cycles = len(list(self.Background_dict['output'][list(self.Background_dict['output'].keys())[0]].values())[0])
+        self.init_params_for_experiment(self.Background_dict)
+        self.Background_dict['Analysis_results'] = {}
+        for cycle in range(number_of_cycles):
+            self.ingest_time_tags(self.Background_dict, cycle)
+            self.experiment_calculations()
+            self.calculate_running_averages(cycle+1)
+            for transit_condition in self.transit_conditions:
+                ### Find transits and extract SPRINT data:  ###
+                self.get_transit_data(transit_condition)
 
 
 if __name__ == '__main__':
-
-    analize = experiment_data_analysis()
+    self = experiment_data_analysis()

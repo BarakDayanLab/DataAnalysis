@@ -1,0 +1,392 @@
+{
+	"env": "LAB",
+	"version": "0.1",
+	"strict": false,
+
+	"temp_root": "C:\\temp\\streams_raw_data",
+	"temp_root_LAB": "C:\\temp\\streams_raw_data",
+	"temp_root_113": "C:\\temp\\streams_raw_data",
+	"temp_root_HOME": "C:\\temp\\streams_raw_data",
+
+	"all_experiments_root": "C:\\temp\\refactor_debug\\Experiment_results",
+	"experiment_root": "C:\\temp\\refactor_debug\\Experiment_results\\PNSA",
+	"root": "C:\\temp\\refactor_debug\\Experiment_results\\PNSA\\{current_date}\\{current_time}_Photon_TimeTags",
+
+	"network_root": "U:\\Lab_2023\\Experiment_results\\PNSA\\{analysis_type}\\{current_date}\\{current_time}_Photon_TimeTags",
+
+	"calibration_folder__DO_WE_NEED__": "U:\\Lab_2023\\Experiment_results\\PNSA\\20231116\\133237_Photon_TimeTags",
+
+	"playback_data_LAB": "C:\\temp\\refactor_debug\\Experiment_results\\PNSA\\20240107\\183329_Photon_TimeTags\\output",
+	"playback_data_HOME": "F:\\temp\\Weizmann\\Experiments\\20231213\\181814_Photon_TimeTags",
+	"playback_data_113": "C:\\temp\\playback_data\\PNSA\\20231225\\165550_Photon_TimeTags",
+
+	"files": [
+
+		{
+			"# META FILES": "-----------------------------------"
+		},
+
+		{
+            "description": "The experiment threshold information",
+			"data": "exp_comment",
+			"file_name": "experiment_comments",
+  			"folder": "meta_data",
+			"type": "txt",
+			"append": true
+		},
+		{
+            "description": "For every experiment: Date/Time, valid/ignore, with/out atoms, cycles, comment",
+			"data": "daily_experiment_comments",
+			"file_name": "daily_experiment_comments",
+			"header": "Date,Time,IgnoreValid,Atoms,Cycles,Comment",
+			"folder": "..\\",
+			"append": true,
+			"type": "csv"
+		},
+		{
+            "description": "The experiments config values",
+			"data": "experiment_config_values",
+			"file_name": "Exp_config_values_{current_date}_{current_time}",
+			"folder": "meta_data",
+			"type": "json"
+		},
+		{
+            "description": "The figures plotted (UI)",
+			"file_name": "Experiment_plot",
+			"folder": "meta_data",
+			"type": "plt"
+		},
+		{
+            "description": "The figures plotted (UI) - saved in a central place",
+			"file_name": "{current_time}_Experiment_Figure",
+			"folder": "..\\..\\Experiment_figures",
+			"type": "plt",
+			"skip": false
+		},
+		{
+            "description": "The run parameters",
+			"data": "run_parameters",
+			"file_name": "run_parameters",
+			"folder": "meta_data",
+			"type": "json"
+		},
+
+		{
+			"# INPUT FILES": "-----------------------------------"
+		},
+
+		{
+			"data": "early_sequence",
+			"description": "early sequence",
+			"name": "early_sequence",
+			"file_name": "Early_sequence_vector",
+			"folder": "input\\sequences",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "late_sequence",
+			"description": "late sequence",
+			"name": "late_sequence",
+			"file_name": "Late_sequence_vector",
+			"folder": "input\\sequences",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "north_sequence",
+			"description": "north sequence",
+			"name": "north_sequence",
+			"file_name": "North_sequence_vector",
+			"folder": "input\\sequences",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "south_sequence",
+			"description": "south sequence",
+			"name": "south_sequence",
+			"file_name": "South_sequence_vector",
+			"folder": "input\\sequences",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "fs_sequence",
+			"description": "fs sequence",
+			"name": "fs_sequence",
+			"file_name": "FS_sequence_vector",
+			"folder": "input\\sequences",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "pulses_location",
+			"description": "pulses location",
+			"name": "pulses_location",
+			"file_name": "Pulses_location_in_seq",
+			"folder": "input\\sequences",
+			"type": ["mat", "npz"]
+		},
+
+		{
+			"# OUTPUT FILES - TIMETAGS": "-----------------------------------"
+		},
+
+  		{
+			"data": "tt_N_measure_batch",
+			"description": "north timetags",
+			"name": "north_timetags",
+			"file_name": "North_timetags",
+			"folder": "output\\North(8)",
+			"type": ["mat", "npz"]
+		},
+  		{
+			"data": "tt_S_measure_batch",
+			"description": "south timetags",
+			"name": "south_timetags",
+			"file_name": "South_timetags",
+			"folder": "output\\South(5)",
+			"type": ["mat", "npz"]
+		},
+  		{
+			"data": "tt_FS_measure_batch",
+			"description": "fast switch",
+			"name": "fast_switch",
+			"file_name": "FS_timetags",
+			"folder": "output\\FastSwitch(6,7)",
+			"type": ["mat", "npz"]
+		},
+   		{
+			"data": "tt_BP_measure_batch",
+			"description": "bright timetags",
+			"name": "bright_timetags",
+			"file_name": "Bright_timetags",
+			"folder": "output\\Bright(1,2)",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "tt_DP_measure_batch",
+			"description": "dark timetags",
+			"name": "dark_timetags",
+			"file_name": "Dark_timetags",
+			"folder": "output\\Dark(3,4)",
+			"type": ["mat", "npz"]
+		},
+
+		{
+			"# OUTPUT FILES - DISPLAY VECTORS": "-----------------------------------"
+		},
+
+  		{
+			"data": "folded_tt_N_cumulative_avg",
+			"name": "folded_tt_N_cumulative_avg",
+			"file_name": "folded_tt_N_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+  		{
+			"data": "folded_tt_S_cumulative_avg",
+			"name": "folded_tt_S_cumulative_avg",
+			"file_name": "folded_tt_S_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+  		{
+			"data": "folded_tt_FS_cumulative_avg",
+			"name": "folded_tt_FS_cumulative_avg",
+			"file_name": "folded_tt_FS_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+   		{
+			"data": "folded_tt_BP_cumulative_avg",
+			"name": "folded_tt_BP_cumulative_avg",
+			"file_name": "folded_tt_BP_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "folded_tt_DP_cumulative_avg",
+			"name": "folded_tt_DP_cumulative_avg",
+			"file_name": "folded_tt_DP_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "folded_tt_S_directional_cumulative_avg",
+			"name": "folded_tt_S_directional_cumulative_avg",
+			"file_name": "folded_tt_S_directional_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+  		{
+			"data": "folded_tt_N_directional_cumulative_avg",
+			"name": "folded_tt_N_directional_cumulative_avg",
+			"file_name": "folded_tt_N_directional_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+   		{
+			"data": "folded_tt_BP_timebins_cumulative_avg",
+			"name": "folded_tt_BP_timebins_cumulative_avg",
+			"file_name": "folded_tt_BP_timebins_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "folded_tt_DP_timebins_cumulative_avg",
+			"name": "folded_tt_DP_timebins_cumulative_avg",
+			"file_name": "folded_tt_DP_timebins_cumulative_avg",
+			"folder": "output\\Display_vectors",
+			"type": ["mat", "npz"]
+		},
+
+		{
+			"# OUTPUT FILES - SPRINT ANALYSIS": "-----------------------------------"
+		},
+
+		{
+			"data": "Index_of_Sequences_with_data_points",
+			"description": "Array of indices of sequences with data points",
+			"name": "Index_of_Sequences_with_data_points",
+			"file_name": "Index_of_Sequences_with_data_points",
+			"folder": "output\\SPRINT_results",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "Reflections_per_data_point",
+			"description": "Array of number of clicks from reflection in sequences with data points",
+			"name": "Reflections_per_data_point",
+			"file_name": "Reflections_per_data_point",
+			"folder": "output\\SPRINT_results",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "Transmissions_per_data_point",
+			"description": "Array of number of clicks from Transmission in sequences with data points",
+			"name": "Transmissions_per_data_point",
+			"file_name": "Transmissions_per_data_point",
+			"folder": "output\\SPRINT_results",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "Bright_port_counts_per_data_point",
+			"description": "Array of number of clicks from BP (bright port) in sequences with data points",
+			"name": "Bright_port_counts_per_data_point",
+			"file_name": "Bright_port_counts_per_data_point",
+			"folder": "output\\SPRINT_results",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "Dark_port_counts_per_data_point",
+			"description": "Array of number of clicks from DP (dark port) in sequences with data points",
+			"name": "Dark_port_counts_per_data_point",
+			"file_name": "Dark_port_counts_per_data_point",
+			"folder": "output\\SPRINT_results",
+			"type": ["mat", "npz"]
+		},
+
+		{
+			"# OUTPUT FILES - MZ BALANCING": "-----------------------------------"
+		},
+
+		{
+			"data": "MZ_BP_counts_balancing_batch",
+			"description": "Mach-zehnder Bright Port counts vector at balancing phase",
+			"name": "MZ_BP_counts_balancing_batch",
+			"file_name": "MZ_BP_counts_balancing_batch",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "MZ_BP_counts_balancing_check_batch",
+			"description": "Mach-zehnder Bright Port counts vector at balancing-check phase",
+			"name": "Mach-zehnder Bright Port counts vector at balancing-check phase",
+			"file_name": "MZ_BP_counts_balancing_check_batch",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "MZ_DP_counts_balancing_batch",
+			"description": "Mach-zehnder Dark Port counts vector at balancing phase",
+			"name": "MZ_DP_counts_balancing_batch",
+			"file_name": "MZ_DP_counts_balancing_batch",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "MZ_DP_counts_balancing_check_batch",
+			"description": "Mach-zehnder Dark Port counts vector at balancing-check phase",
+			"name": "MZ_DP_counts_balancing_check_batch",
+			"file_name": "MZ_DP_counts_balancing_check_batch",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "Phase_Correction_vec_batch",
+			"description": "Mach-zehnder phase sweep vec during balancing",
+			"name": "Phase_Correction_vec_batch",
+			"file_name": "Phase_Correction_vec_batch",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "Phase_Correction_min_vec_batch",
+			"description": "Phase correction value of current best during phase sweep of Mach-zehnder balancing",
+			"name": "Phase_Correction_min_vec_batch",
+			"file_name": "Phase_Correction_min_vec_batch",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "Phase_Correction_value",
+			"description": "The final phase correction value found for the Mach-zehnder balancing",
+			"name": "Phase_Correction_value",
+			"file_name": "Phase_Correction_value",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "MZ_S_tot_counts",
+			"description": "The maximum difference between the Bright port and Dark port counts during Mach-zehnder balancing",
+			"name": "MZ_S_tot_counts",
+			"file_name": "MZ_S_tot_counts",
+			"folder": "output\\MZ_balancing",
+			"type": ["mat", "npz"]
+		},
+
+		{
+			"# OUTPUT FILES - FLOURESENCE/LOCK-ERROR": "-----------------------------------"
+		},
+
+		{
+			"data": "FLR_measurement",
+			"description": "Flouresence",
+			"name": "Flouresence",
+			"file_name": "Flouresence",
+			"folder": "Output",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "lock_error",
+			"description": "Cavity Lock Error",
+			"name": "Cavity_Lock_Error",
+			"file_name": "Cavity_Lock_Error",
+			"folder": "Output",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "interference_error",
+			"description": "interference error",
+			"name": "interference_error",
+			"file_name": "interference_error",
+			"folder": "Output",
+			"type": ["mat", "npz"]
+		},
+		{
+			"data": "k_ex",
+			"description": "Kappa Ex",
+			"name": "Kappa_Ex",
+			"file_name": "Kappa_Ex",
+			"folder": "Output",
+			"type": ["mat", "npz"]
+		}
+
+	]
+}
