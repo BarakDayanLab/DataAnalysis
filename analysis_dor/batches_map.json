@@ -90,5 +90,67 @@
     },
     "num_of_total_SPRINT_DP_counts_batch": {
         "value_name": "num_of_total_SPRINT_DP_counts"
+    },
+
+
+    "num_of_det_reflections_per_seq_S": {
+        "value_name": "num_of_det_reflections_per_seq_S_"
+    },
+    "num_of_det_reflections_per_seq_N": {
+        "value_name": "num_of_det_reflections_per_seq_N_"
+    },
+    "num_of_det_transmissions_per_seq_S_": {
+        "value_name": "num_of_det_transmissions_per_seq_S_"
+    },
+    "num_of_det_transmissions_per_seq_N_": {
+        "value_name": "num_of_det_transmissions_per_seq_N_"
+    },
+    "num_of_SPRINT_reflections_per_seq_S": {
+        "value_name": "num_of_SPRINT_reflections_per_seq_S_"
+    },
+    "num_of_SPRINT_reflections_per_seq_N": {
+        "value_name": "num_of_SPRINT_reflections_per_seq_N_"
+    },
+    "num_of_SPRINT_transmissions_per_seq_S": {
+        "value_name": "num_of_SPRINT_transmissions_per_seq_S_"
+    },
+    "num_of_SPRINT_transmissions_per_seq_N": {
+        "value_name": "num_of_SPRINT_transmissions_per_seq_N_"
+    },
+    "num_of_BP_counts_per_seq_in_SPRINT_pulse": {
+        "value_name": "num_of_BP_counts_per_seq_in_SPRINT_pulse"
+    },
+    "num_of_DP_counts_per_seq_in_SPRINT_pulse": {
+        "value_name": "num_of_DP_counts_per_seq_in_SPRINT_pulse"
+    },
+    "all_transits_seq_indx_per_cond": {
+        "value_name": "all_transits_seq_indx_per_cond"
+    },
+    "seq_with_data_points": {
+        "value_name": "seq_with_data_points"
+    },
+    "reflection_SPRINT_data": {
+        "value_name": "reflection_SPRINT_data"
+    },
+    "transmission_SPRINT_data": {
+        "value_name": "transmission_SPRINT_data"
+    },
+    "BP_counts_SPRINT_data": {
+        "value_name": "BP_counts_SPRINT_data"
+    },
+    "DP_counts_SPRINT_data": {
+        "value_name": "DP_counts_SPRINT_data"
+    },
+    "reflection_SPRINT_data_without_transits": {
+        "value_name": "reflection_SPRINT_data_without_transits"
+    },
+    "transmission_SPRINT_data_without_transits": {
+        "value_name": "transmission_SPRINT_data_without_transits"
+    },
+    "BP_counts_SPRINT_data_without_transits": {
+        "value_name": "BP_counts_SPRINT_data_without_transits"
+    },
+    "DP_counts_SPRINT_data_without_transits": {
+        "value_name": "DP_counts_SPRINT_data_without_transits"
     }
 }

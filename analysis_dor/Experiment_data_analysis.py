@@ -1,13 +1,19 @@
 import Experiment_data_load
 import numpy as np
 import os
+import sys
+import json
 import math
 import pymsgbox
+import pathlib
 import matplotlib.pyplot as plt
 from tkinter import *
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
-from Utils import Utils
+from Utilities.Utils import Utils
+from Utilities.BDLogger import BDLogger
+from Utilities.BDBatch import BDBatch
+from Utilities.BDResults import BDResults
 
 
 class experiment_data_analysis:
@@ -86,6 +92,33 @@ class experiment_data_analysis:
                 SPRINT_pulses_per_seq += 1
         return detection_pulses_per_seq, SPRINT_pulses_per_seq
 
+    def get_pulses_location_in_seq(self, delay, seq, smearing):
+        '''
+        :description
+        A function that takes a pulse sequence, (a) applies a delay to it, (b) detects the pulses inside and
+        (c) widens them pulses by the "smearing" factor, to build a filter (done to match the filter to the performance
+        of the physical system, e.g. AOMs).
+
+        :param delay: Between the actual sequence pulse location to the location of the folded data
+        :param seq: The sequence of pulses from which the filter is generated.
+        :param smearing: The value that is added to the filter before and after each pulse in the sequence.
+
+        :return: the pulses location in the sequence (indices tuples) and the filter signal itself
+        '''
+
+        # Create an array consisting of zeros/ones that acts as filter, based on sequence values.
+        seq_filter = (np.array(seq) > 0).astype(int)
+        # Shift all values ("roll") to the right, based on the delay parameter
+        seq_filter = np.roll(seq_filter, delay)
+        # Find signal boundries indices - comparing each element with its neighbor
+        indices = np.where(seq_filter[:-1] != seq_filter[1:])[0] + 1
+        # Create the pulses boundry tuples - with the smearing widening
+        pulses_loc = [(indices[i] - smearing, indices[i + 1] + smearing) for i in range(0, len(indices), 2)]
+        # Recreate the signal by filling it with 1's in the relevant places
+        seq_filter_with_smearing = np.zeros(seq_filter.shape[0])
+        for (start, end) in pulses_loc: np.put_along_axis(seq_filter_with_smearing, np.arange(start, end), 1, axis=0)
+        return pulses_loc, seq_filter_with_smearing
+
     def init_params_for_experiment(self, dict):
 
         self.sequence_len = len(dict['input']['sequences']['South_sequence_vector'])
@@ -101,6 +134,18 @@ class experiment_data_analysis:
 
         self.end_of_det_pulse_in_seq = int(
             self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq - 1][1]) + 6
+
+        # ----------------------------------------------------------
+        # Prepare pulses location of South, North and Ancilla
+        # ----------------------------------------------------------
+
+        self.filter_delay = [0, 0]
+        self.pulses_location_in_seq_S, self.filter_S = self.get_pulses_location_in_seq(self.filter_delay[0],
+                                                                                       dict['input']['sequences']['South_sequence_vector'],
+                                                                                       smearing=0)  # smearing=int(Config.num_between_zeros/2))
+        self.pulses_location_in_seq_N, self.filter_N = self.get_pulses_location_in_seq(self.filter_delay[1],
+                                                                                       dict['input']['sequences']['North_sequence_vector'],
+                                                                                       smearing=0)  # smearing=int(Config.num_between_zeros/2))
 
         # define empty variables
 
@@ -139,16 +184,28 @@ class experiment_data_analysis:
         self.num_of_det_transmissions_per_seq_S = np.zeros(self.number_of_PNSA_sequences)
         self.num_of_det_transmissions_per_seq_N = np.zeros(self.number_of_PNSA_sequences)
 
-        self.seq_with_data_points = []
-        self.reflection_SPRINT_data = []  # Array of vectors with data on the number of reflections per SPRINT pulse in sequence.
-        self.transmission_SPRINT_data = []  # Array of vectors with data on the number of transmissions per SPRINT pulse in sequence.
-        self.BP_counts_SPRINT_data = []
-        self.DP_counts_SPRINT_data = []
+        self.all_transits_seq_indx_per_cond = [
+            [] for _ in range(len(self.transit_conditions))
+        ]
 
-        self.reflection_SPRINT_data_without_transits = []  # Array of vectors with data on the number of reflections per SPRINT pulse in sequence.
-        self.transmission_SPRINT_data_without_transits = []  # Array of vectors with data on the number of transmissions per SPRINT pulse in sequence.
-        self.BP_counts_SPRINT_data_without_transits = []
-        self.DP_counts_SPRINT_data_without_transits = []
+        self.seq_with_data_points, \
+        self.reflection_SPRINT_data, \
+        self.transmission_SPRINT_data, \
+        self.BP_counts_SPRINT_data, \
+        self.DP_counts_SPRINT_data = [
+            [
+                [] for _ in range(len(self.transit_conditions))
+            ] for _ in range(5)
+        ]
+
+        self.reflection_SPRINT_data_without_transits, \
+        self.transmission_SPRINT_data_without_transits, \
+        self.BP_counts_SPRINT_data_without_transits, \
+        self.DP_counts_SPRINT_data_without_transits = [
+            [
+                [] for _ in range(len(self.transit_conditions))
+            ] for _ in range(4)
+        ]
 
     def ingest_time_tags(self, dict, cycle):
         """
@@ -443,7 +500,6 @@ class experiment_data_analysis:
         if cond_list is None:
             cond_list = [[2, 2]]
 
-        self.all_transits_seq_indx_per_cond = []  # Array of the sequence indexes of all recognized transits per cycle. The length of it will be the number of all transits at the current cycle.
         all_transits_seq_indx = []
 
         # Find all tansits for each of the conditions given in the list:
@@ -488,7 +544,7 @@ class experiment_data_analysis:
                 if all_transits_seq_indx[i][0] <= all_transits_seq_indx[i - 1][-1] + 1:
                     all_transits_seq_indx[i - 1] = sorted(list(set(all_transits_seq_indx[i - 1] + all_transits_seq_indx[i])))
                     all_transits_seq_indx.pop(i)
-        self.all_transits_seq_indx_per_cond.append(all_transits_seq_indx)
+        return all_transits_seq_indx
 
     def analyze_SPRINT_data_points(self, all_transits_seq_indx, SPRINT_pulse_number=[1], background=False):
         '''
@@ -549,41 +605,97 @@ class experiment_data_analysis:
                                 DP_counts_SPRINT_data.append(len(self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
         return seq_with_data_points, reflection_SPRINT_data, transmission_SPRINT_data, BP_counts_SPRINT_data, DP_counts_SPRINT_data
 
-    def get_transit_data(self, transit_condition):
+    def get_transit_data(self, transit_condition, cond_num):
         '''
         Use the data loaded from the experiment to find atomic transits under different conditions and some data to
         compare the conditions, such as, number of transits, transit length distribution and more...
-        :param list_of_conditions: List of lists, so that each condition is of the structure [[1,2],[2,1],[2,1,2],[2,2]]
+        :param transit_condition: List of lists, so that each condition is of the structure [[1,2],[2,1],....]
                and so on...
         :return:
         '''
 
-        self.find_transit_events(cond_list=transit_condition, minimum_number_of_seq_detected=2)
+        self.all_transits_seq_indx_per_cond[cond_num].append(self.find_transit_events(cond_list=transit_condition, minimum_number_of_seq_detected=2))
 
         # Analyze SPRINT data during transits:
-        (self.seq_with_data_points, self.reflection_SPRINT_data, self.transmission_SPRINT_data,
-         self.BP_counts_SPRINT_data, self.DP_counts_SPRINT_data) = \
-            self.analyze_SPRINT_data_points(self.all_transits_seq_indx_per_cond, SPRINT_pulse_number=[1, 2],
+        (self.seq_with_data_points[cond_num], self.reflection_SPRINT_data[cond_num], self.transmission_SPRINT_data[cond_num],
+         self.BP_counts_SPRINT_data[cond_num], self.DP_counts_SPRINT_data[cond_num]) = \
+            self.analyze_SPRINT_data_points(self.all_transits_seq_indx_per_cond[cond_num], SPRINT_pulse_number=[1, 2],
                                             background=False)  # Enter the index of the SPRINT pulse for which the data should be analyzed
         # print(self.potential_data)
         # Analyze SPRINT data when no transit occur:
         self.all_seq_without_transits = [
             np.delete(np.arange(0, self.number_of_PNSA_sequences, 1, dtype='int'),
-                      sum(self.all_transits_seq_indx_per_cond, [])).tolist()
+                      sum(self.all_transits_seq_indx_per_cond[cond_num], [])).tolist()
         ]
-        (_, self.reflection_SPRINT_data_without_transits, self.transmission_SPRINT_data_without_transits,
-         self.BP_counts_SPRINT_data_without_transits, self.DP_counts_SPRINT_data_without_transits) = \
+        (_, self.reflection_SPRINT_data_without_transits[cond_num], self.transmission_SPRINT_data_without_transits[cond_num],
+         self.BP_counts_SPRINT_data_without_transits[cond_num], self.DP_counts_SPRINT_data_without_transits[cond_num]) = \
             self.analyze_SPRINT_data_points(self.all_seq_without_transits, SPRINT_pulse_number=[1, 2],
                                             background=True)  # Enter the index of the SPRINT pulse for which the data should be analyzed
 
-        self.number_of_transits_live = len(self.all_transits_seq_indx_per_cond)
-        self.number_of_transits_total = len(
-            [vec for lst in self.batcher['all_transits_seq_indx_batch'] for vec in lst])
+        # self.number_of_transits_live = len(self.all_transits_seq_indx_per_cond)
+        # self.number_of_transits_total = len(
+        #     [vec for lst in self.batcher['all_transits_seq_indx_batch'] for vec in lst])
+        #
+        # self.num_of_total_SPRINT_reflections = sum(self.reflection_SPRINT_data_without_transits)
+        # self.num_of_total_SPRINT_transmissions = sum(self.transmission_SPRINT_data_without_transits)
+        # self.num_of_total_SPRINT_BP_counts = sum(self.BP_counts_SPRINT_data_without_transits)
+        # self.num_of_total_SPRINT_DP_counts = sum(self.DP_counts_SPRINT_data_without_transits)
 
-        self.num_of_total_SPRINT_reflections = sum(self.reflection_SPRINT_data_without_transits)
-        self.num_of_total_SPRINT_transmissions = sum(self.transmission_SPRINT_data_without_transits)
-        self.num_of_total_SPRINT_BP_counts = sum(self.BP_counts_SPRINT_data_without_transits)
-        self.num_of_total_SPRINT_DP_counts = sum(self.DP_counts_SPRINT_data_without_transits)
+    def save_experiment_results(self, experiment_comment, daily_experiment_comments):
+        """
+        Responsible for saving all the results gathered in the experiment and required by analysis
+        Return a flag telling if save should occur at all.
+        TODO: add 'save_experiment_results' to BaseExperiment, Make 'run' method invoke it at the end
+        """
+
+        # Save all other files
+        results = {
+            "folded_tt_S_cumulative_avg": self.folded_tt_S_cumulative_avg,
+            "folded_tt_N_cumulative_avg": self.folded_tt_N_cumulative_avg,
+            "folded_tt_BP_cumulative_avg": self.folded_tt_BP_cumulative_avg,
+            "folded_tt_DP_cumulative_avg": self.folded_tt_DP_cumulative_avg,
+            "folded_tt_FS_cumulative_avg": self.folded_tt_FS_cumulative_avg,
+            "folded_tt_S_directional_cumulative_avg": self.folded_tt_S_directional_cumulative_avg,
+            "folded_tt_N_directional_cumulative_avg": self.folded_tt_N_directional_cumulative_avg,
+            "folded_tt_BP_timebins_cumulative_avg": self.folded_tt_BP_timebins_cumulative_avg,
+            "folded_tt_DP_timebins_cumulative_avg": self.folded_tt_DP_timebins_cumulative_avg,
+
+            "MZ_BP_counts_balancing_batch": self.batcher['MZ_BP_counts_balancing_batch'],
+            "MZ_BP_counts_balancing_check_batch": self.batcher['MZ_BP_counts_balancing_check_batch'],
+            "MZ_DP_counts_balancing_batch": self.batcher['MZ_DP_counts_balancing_batch'],
+            "MZ_DP_counts_balancing_check_batch": self.batcher['MZ_DP_counts_balancing_check_batch'],
+            "Phase_Correction_vec_batch": self.batcher['Phase_Correction_vec_batch'],
+            "Phase_Correction_min_vec_batch": self.batcher['Phase_Correction_min_vec_batch'],
+            "Phase_Correction_value": self.batcher['Phase_Correction_value'],
+            "MZ_S_tot_counts": self.batcher['MZ_S_tot_counts'],
+
+            "Index_of_Sequences_with_data_points": self.batcher['seq_with_data_points_batch'],
+            "Reflections_per_data_point": self.batcher['reflection_SPRINT_data_batch'],
+            "Transmissions_per_data_point": self.batcher['transmission_SPRINT_data_batch'],
+            "Bright_port_counts_per_data_point": self.batcher['BP_counts_SPRINT_data_batch'],
+            "Dark_port_counts_per_data_point": self.batcher['DP_counts_SPRINT_data_batch'],
+
+            "FLR_measurement": self.batcher['flr_batch'],
+            "lock_error": self.batcher['lock_err_batch'],
+            "k_ex": self.batcher['k_ex_batch'],
+            "interference_error": self.batcher['interference_error_batch'],
+            "exp_timestr": experiment_comment,
+
+            "exp_comment": f'transit condition: {self.transit_condition}; reflection threshold: {self.reflection_threshold} @ {int(self.reflection_threshold_time / 1e6)} ms',
+            "daily_experiment_comments": daily_experiment_comments,
+
+            "experiment_config_values": self.Exp_Values,
+
+            "run_parameters": self.run_parameters
+        }
+
+        # Save the results
+        if self.playback['active']:
+            resolved_path = self.playback['save_results_path']
+        else:
+            resolved_path = self.bd_results.get_sequence_folder(sequence_definitions)
+        self.bd_results.save_results(results, resolved_path)
+
 
     # Class's constructor
     def __init__(self, exp_type='QRAM', exp_date='20230719', exp_time=None, transit_conditions=[[2, 1, 2]]):
@@ -634,6 +746,30 @@ class experiment_data_analysis:
         #           sum(self.folded_tt_S_directional[
         #               int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]))
 
+        self.paths_map = {
+            "name": __name__,
+            "file": __file__,
+            "cwd": os.getcwd(),
+            "root": str(pathlib.Path(__file__).parent.resolve())
+        }
+
+        # Setup console logger. We do this first, so rest of code can use logging functions.
+        self.logger = BDLogger()
+
+        # Initialize the BDBatch helper - to serve us when batching experiment samples
+        self.batcher = BDBatch(json_map_path=self.paths_map['cwd'])
+
+        # Initialize the BDResults helper - for saving experiment results
+        self.bd_results = BDResults(json_map_path=self.paths_map['cwd'], version="0.1", logger=self.logger)
+        self.bd_results.create_experiment_run_folder()
+
+        # Check network driver availability
+        network_drive_letter = 'U'
+        network_drive_available = self.bd_results.is_network_drive_available(f'{network_drive_letter}:\\Lab_2023')
+        if not network_drive_available:
+            self.logger.error(f'Network drive {network_drive_letter} is not available/connected. PLEASE FIX.')
+            sys.exit(1)
+
         self.transit_conditions = transit_conditions
 
         # Open folder and load to dictionary
@@ -645,6 +781,7 @@ class experiment_data_analysis:
         root.destroy()
 
         # Divide data to background and experiment data:
+        exp_key = list(self.Exp_dict.keys())[0]
         for key in list(self.Exp_dict.keys()):
             if 'without' in key.lower():
                 self.Background_dict = self.Exp_dict[key]
@@ -656,15 +793,18 @@ class experiment_data_analysis:
         # check number of cycles in experiment:
         number_of_cycles = len(list(self.Background_dict['output'][list(self.Background_dict['output'].keys())[0]].values())[0])
         self.init_params_for_experiment(self.Background_dict)
+        # Initialize the batcher
+        self.batcher.set_batch_size(number_of_cycles)
+        self.batcher.empty_all()
         self.Background_dict['Analysis_results'] = {}
         for cycle in range(number_of_cycles):
             self.ingest_time_tags(self.Background_dict, cycle)
             self.experiment_calculations()
             self.calculate_running_averages(cycle+1)
-            for transit_condition in self.transit_conditions:
+            for condition_number, transit_condition in enumerate(self.transit_conditions):
                 ### Find transits and extract SPRINT data:  ###
-                self.get_transit_data(transit_condition)
-
+                self.get_transit_data(transit_condition, condition_number)
+            self.batcher.batch_all(self)
 
 if __name__ == '__main__':
     self = experiment_data_analysis()

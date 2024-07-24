@@ -1,6 +1,6 @@
 import os
 import json
-from Utilities.Utils import Utils
+from Utils import Utils
 
 
 class BDBatch:
