@@ -93,17 +93,24 @@
     },
 
 
+
     "num_of_det_reflections_per_seq_S": {
         "value_name": "num_of_det_reflections_per_seq_S_"
     },
     "num_of_det_reflections_per_seq_N": {
         "value_name": "num_of_det_reflections_per_seq_N_"
     },
-    "num_of_det_transmissions_per_seq_S_": {
+    "num_of_det_reflections_per_seq": {
+        "value_name": "num_of_det_reflections_per_seq_"
+    },
+    "num_of_det_transmissions_per_seq_S": {
         "value_name": "num_of_det_transmissions_per_seq_S_"
     },
-    "num_of_det_transmissions_per_seq_N_": {
+    "num_of_det_transmissions_per_seq_N": {
         "value_name": "num_of_det_transmissions_per_seq_N_"
+    },
+    "num_of_det_transmissions_per_seq": {
+        "value_name": "num_of_det_transmissions_per_seq_"
     },
     "num_of_SPRINT_reflections_per_seq_S": {
         "value_name": "num_of_SPRINT_reflections_per_seq_S_"
@@ -111,11 +118,17 @@
     "num_of_SPRINT_reflections_per_seq_N": {
         "value_name": "num_of_SPRINT_reflections_per_seq_N_"
     },
+    "num_of_SPRINT_reflections_per_seq": {
+        "value_name": "num_of_SPRINT_reflections_per_seq_"
+    },
     "num_of_SPRINT_transmissions_per_seq_S": {
         "value_name": "num_of_SPRINT_transmissions_per_seq_S_"
     },
     "num_of_SPRINT_transmissions_per_seq_N": {
         "value_name": "num_of_SPRINT_transmissions_per_seq_N_"
+    },
+    "num_of_SPRINT_transmissions_per_seq": {
+        "value_name": "num_of_SPRINT_transmissions_per_seq_"
     },
     "num_of_BP_counts_per_seq_in_SPRINT_pulse": {
         "value_name": "num_of_BP_counts_per_seq_in_SPRINT_pulse"
