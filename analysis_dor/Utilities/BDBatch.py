@@ -1,7 +1,7 @@
 import os
 import json
-from Utils import Utils
-
+from Utilities.Utils import Utils
+from copy import deepcopy
 
 class BDBatch:
 
@@ -77,7 +77,7 @@ class BDBatch:
                 continue
 
             # Get the relevant value we want to add to batch
-            val = values_dict[value_name]
+            val = values_dict[value_name].copy()
 
             # Check if it's empty and we're prevented from adding empty values
             if "allow_empty" in entry and not entry["allow_empty"] and self._is_value_empty(val) == 0:

@@ -724,61 +724,120 @@ class experiment_data_analysis:
         :return:
         '''
 
-        dict = {}
+        dictionary = dict()
+
         ## General data for background experiment ##
+
         # transmission data in detection pulses in sequences:
-        dict['transmission_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
+        dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
              'num_of_det_transmissions_per_seq']
-        dict['transmission_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
+        dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
              'num_of_det_transmissions_per_seq_N']
-        dict['transmission_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
+        dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
              'num_of_det_transmissions_per_seq_S']
+
         # reflection data in detection pulses in sequences:
-        dict['reflection_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
+        dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
              'num_of_det_reflections_per_seq']
-        dict['reflection_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
+        dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
              'num_of_det_reflections_per_seq_N']
-        dict['reflection_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
+        dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
              'num_of_det_reflections_per_seq_S']
+
         # transmission data in SPRINT pulses in sequences:
-        dict['transmission_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
             'num_of_SPRINT_transmissions_per_seq']
-        dict['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
+        dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
             'num_of_SPRINT_transmissions_per_seq_N']
-        dict['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
+        dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
             'num_of_SPRINT_transmissions_per_seq_S']
+
         # reflection data in SPRINT pulses in sequences:
-        dict['reflection_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
             'num_of_SPRINT_reflections_per_seq']
-        dict['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
+        dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
             'num_of_SPRINT_reflections_per_seq_N']
-        dict['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
+        dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
             'num_of_SPRINT_reflections_per_seq_S']
+
         # Bright port data in SPRINT pulses in sequence:
-        dict['bright_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        dictionary['bright_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
             'num_of_BP_counts_per_seq_in_SPRINT_pulse']
+
         # Dark port data in SPRINT pulses in sequence:
-        dict['dark_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        dictionary['dark_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
             'num_of_DP_counts_per_seq_in_SPRINT_pulse']
 
         ## Sorting and summarizing the data analysis for each condition ##
         for indx, condition in enumerate(self.transit_conditions):
+            dictionary[str(condition)] = dict()
             # Handle transits related data:
-            dict[str(condition)]['number_of_transits'] = 0
-            dict[str(condition)]['number_of_sequences_with_transits'] = 0
-            dict[str(condition)]['indices_of_all_sequences_with_transits_per_cycle'] = []
+            dictionary[str(condition)]['number_of_transits'] = 0
+            dictionary[str(condition)]['number_of_sequences_with_transits'] = 0
+            dictionary[str(condition)]['indices_of_all_sequences_with_transits_per_cycle'] = []
             for lst in self.batcher['all_transits_seq_indx_per_cond']:
                 for vec in lst[indx]:
                     # Get number of transits and number of sequences with transits
-                    dict[str(condition)]['number_of_transits'] += 1
-                    dict[str(condition)]['number_of_sequences_with_transits'] += len(vec)
+                    dictionary[str(condition)]['number_of_transits'] += 1
+                    dictionary[str(condition)]['number_of_sequences_with_transits'] += len(vec)
                 # Save index of sequences with transits per cycle:
-                dict[str(condition)]['indices_of_all_sequences_with_transits_per_cycle'].append(lst[indx])
-            dict[str(condition)]['number_of_sequences_with_transits'] -= dict[str(condition)]['number_of_transits']
+                dictionary[str(condition)]['indices_of_all_sequences_with_transits_per_cycle'].append(lst[indx])
+            dictionary[str(condition)]['number_of_sequences_with_transits'] -= dictionary[str(condition)]['number_of_transits']
 
+            # Handle SPRINT data results for transit events:
 
+            # For each cycle, get a list of all sequence indices with data points, number of photon transmitted or
+            # reflected per data point:
+            dictionary[str(condition)]['sequence_indices_with_data_points_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['seq_with_data_points']]
+            dictionary[str(condition)]['transmission_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['transmission_SPRINT_data']]
+            dictionary[str(condition)]['reflection_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['reflection_SPRINT_data']]
+            # Total number of Transmissions/reflections counts for the entire experiment length (All cycles combined):
+            dictionary[str(condition)]['transmission'] = (
+                sum(sum(dictionary[str(condition)]['transmission_per_data_point_per_cycle'], [])))
+            dictionary[str(condition)]['reflection'] = (
+                sum(sum(dictionary[str(condition)]['reflection_per_data_point_per_cycle'], [])))
 
-        return dict
+            # For each cycle, get the number of photon in the Bright Port(BP) or Dark Port(DP) channel of the
+            # Mach-Zehnder(MZ) per data point:
+            dictionary[str(condition)]['BP_counts_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['BP_counts_SPRINT_data']]
+            dictionary[str(condition)]['DP_counts_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['DP_counts_SPRINT_data']]
+            # Total number of Transmissions/reflections counts for the entire experiment length (All cycles combined):
+            dictionary[str(condition)]['Bright'] = (
+                sum(sum(dictionary[str(condition)]['BP_counts_per_data_point_per_cycle'], [])))
+            dictionary[str(condition)]['Dark'] = (
+                sum(sum(dictionary[str(condition)]['DP_counts_per_data_point_per_cycle'], [])))
+
+            # Handle SPRINT data results for non transit events:
+
+            # For each cycle, get a list of the number of photons transmitted or reflected per data point:
+            dictionary[str(condition)]['transmission_without_transits_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['transmission_SPRINT_data_without_transits']]
+            dictionary[str(condition)]['reflection_without_transits_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['reflection_SPRINT_data_without_transits']]
+            # Total number of Transmissions/reflections counts for the entire experiment length (All cycles combined):
+            dictionary[str(condition)]['transmission_without_transits'] = (
+                sum(sum(dictionary[str(condition)]['transmission_without_transits_per_data_point_per_cycle'], [])))
+            dictionary[str(condition)]['reflection_without_transits'] = (
+                sum(sum(dictionary[str(condition)]['reflection_without_transits_per_data_point_per_cycle'], [])))
+
+            # For each cycle, get a list of the number of photons in the Bright Port(BP) or Dark Port(DP) channel of the
+            # Mach-Zehnder(MZ) per data point:
+            dictionary[str(condition)]['BP_counts_without_transits_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['BP_counts_SPRINT_data_without_transits']]
+            dictionary[str(condition)]['DP_counts_without_transits_per_data_point_per_cycle'] = \
+                [lst[indx] for lst in self.batcher['DP_counts_SPRINT_data_without_transits']]
+            # Total number of Transmissions/reflections counts for the entire experiment length (All cycles combined):
+            dictionary[str(condition)]['Bright_without_transits'] = (
+                sum(sum(dictionary[str(condition)]['BP_counts_without_transits_per_data_point_per_cycle'], [])))
+            dictionary[str(condition)]['Dark_without_transits'] = (
+                sum(sum(dictionary[str(condition)]['DP_counts_without_transits_per_data_point_per_cycle'], [])))
+
+        return dictionary
 
 
     # Class's constructor
@@ -880,7 +939,6 @@ class experiment_data_analysis:
         # Initialize the batcher
         self.batcher.set_batch_size(number_of_cycles)
         self.batcher.empty_all()
-        # self.Background_dict['Analysis_results'] = {}
         for cycle in tqdm(range(number_of_cycles)):
             self.ingest_time_tags(self.Background_dict, cycle)
             self.experiment_calculations()
@@ -889,7 +947,26 @@ class experiment_data_analysis:
                 ### Find transits and extract SPRINT data:  ###
                 self.get_transit_data(transit_condition, condition_number)
             self.batcher.batch_all(self)
-            self.Background_dict['Analysis_results'] = self.results_to_dictionary()
+        self.Background_dict['Analysis_results'] = self.results_to_dictionary()
+
+        # "real" experiment analysis:
+        # check number of cycles in experiment:
+        number_of_cycles = len(list(self.Exp_dict['output'][list(self.Exp_dict['output'].keys())[0]].values())[0])
+        self.init_params_for_experiment(self.Exp_dict)
+        # Initialize the batcher
+        self.batcher.set_batch_size(number_of_cycles)
+        self.batcher.empty_all()
+        for cycle in tqdm(range(number_of_cycles)):
+            self.ingest_time_tags(self.Exp_dict, cycle)
+            self.experiment_calculations()
+            # self.calculate_running_averages(cycle+1)
+            for condition_number, transit_condition in enumerate(self.transit_conditions):
+                ### Find transits and extract SPRINT data:  ###
+                self.get_transit_data(transit_condition, condition_number)
+            self.batcher.batch_all(self)
+        self.Exp_dict['Analysis_results'] = self.results_to_dictionary()
+
+        self.batcher.empty_all()
 
 if __name__ == '__main__':
     self = experiment_data_analysis(transit_conditions=[[[2, 1], [1, 2]], [[2, 1, 2]]])
