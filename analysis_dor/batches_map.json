@@ -44,6 +44,9 @@
     "all_transits_seq_indx_per_cond": {
         "value_name": "all_transits_seq_indx_per_cond"
     },
+    "all_transits_length_per_cond": {
+        "value_name": "all_transits_length_per_cond"
+    },
     "seq_with_data_points": {
         "value_name": "seq_with_data_points"
     },

@@ -79,6 +79,18 @@ class experiment_data_analysis:
 
         return experiment, date, time
 
+    def open_folder_to_dictionary(self):
+
+        # Open folder and load to dictionary
+        root = Tk()
+        self.exp_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
+        data = Experiment_data_load.DictionaryBuilder()
+        dictionary = data.load_files_to_dict(self.exp_data_path)
+        messagebox.showinfo(title='Success!', message='Experiment data is ready to use.')
+        root.destroy()
+
+        return dictionary
+
     def number_of_pulses_per_seq(self):
         '''
 
@@ -132,7 +144,7 @@ class experiment_data_analysis:
             self.Pulses_location_in_seq[index][1] = int(pulse[1])
         self.MZ_delay = 250  # [ns]
 
-        self.number_of_PNSA_sequences = math.ceil(self.M_window / self.sequence_len)
+        self.number_of_sequences = math.ceil(self.M_window / self.sequence_len)
 
         self.number_of_detection_pulses_per_seq, self.number_of_SPRINT_pulses_per_seq = self.number_of_pulses_per_seq()
 
@@ -170,26 +182,29 @@ class experiment_data_analysis:
         self.folded_tt_BP_timebins_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
         self.folded_tt_DP_timebins_cumulative_avg = np.zeros(self.sequence_len, dtype=int)
 
-        self.tt_S_binning = np.zeros(self.number_of_PNSA_sequences + 1)
-        self.seq_transit_events_live = np.zeros(self.number_of_PNSA_sequences)
-        self.seq_transit_events_batched = np.zeros(self.number_of_PNSA_sequences)
+        self.tt_S_binning = np.zeros(self.number_of_sequences + 1)
+        self.seq_transit_events_live = np.zeros(self.number_of_sequences)
+        self.seq_transit_events_batched = np.zeros(self.number_of_sequences)
         self.tt_S_SPRINT_events = np.zeros(self.sequence_len)
         self.tt_S_SPRINT_events_batch = np.zeros(self.sequence_len)
-        self.num_of_det_reflections_per_seq_accumulated = np.zeros(self.number_of_PNSA_sequences)
-        self.num_of_det_transmissions_per_seq_accumulated = np.zeros(self.number_of_PNSA_sequences)
+        self.num_of_det_reflections_per_seq_accumulated = np.zeros(self.number_of_sequences)
+        self.num_of_det_transmissions_per_seq_accumulated = np.zeros(self.number_of_sequences)
 
         num_of_seq_per_count = 50
-        self.num_of_BP_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences // num_of_seq_per_count)
-        self.num_of_DP_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences // num_of_seq_per_count)
-        self.num_of_S_counts_per_n_sequences = np.zeros(self.number_of_PNSA_sequences // num_of_seq_per_count)
+        self.num_of_BP_counts_per_n_sequences = np.zeros(self.number_of_sequences // num_of_seq_per_count)
+        self.num_of_DP_counts_per_n_sequences = np.zeros(self.number_of_sequences // num_of_seq_per_count)
+        self.num_of_S_counts_per_n_sequences = np.zeros(self.number_of_sequences // num_of_seq_per_count)
 
-        self.num_of_det_reflections_per_seq_S = np.zeros(self.number_of_PNSA_sequences)
-        self.num_of_det_reflections_per_seq_N = np.zeros(self.number_of_PNSA_sequences)
-        self.num_of_det_transmissions_per_seq_S = np.zeros(self.number_of_PNSA_sequences)
-        self.num_of_det_transmissions_per_seq_N = np.zeros(self.number_of_PNSA_sequences)
+        self.num_of_det_reflections_per_seq_S = np.zeros(self.number_of_sequences)
+        self.num_of_det_reflections_per_seq_N = np.zeros(self.number_of_sequences)
+        self.num_of_det_transmissions_per_seq_S = np.zeros(self.number_of_sequences)
+        self.num_of_det_transmissions_per_seq_N = np.zeros(self.number_of_sequences)
 
-        self.all_transits_seq_indx_per_cond = [
-            [] for _ in range(len(self.transit_conditions))
+        self.all_transits_seq_indx_per_cond, \
+        self.all_transits_length_per_cond = [
+            [
+                [] for _ in range(len(self.transit_conditions))
+            ] for _ in range(2)
         ]
 
         self.seq_with_data_points, \
@@ -225,7 +240,76 @@ class experiment_data_analysis:
         self.tt_S_measure = dict['output']['South(5)']['South_timetags'][cycle]
         self.tt_FS_measure = dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]
 
-    def fold_tt_histogram(self, exp_sequence_len):
+    def fold_tt_histogram(self, cycle, exp_sequence_len):
+
+        self.folded_tt_S = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_N = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_BP = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_DP = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_FS = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_S_directional = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_N_directional = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_BP_timebins = np.zeros(exp_sequence_len, dtype=int)
+        self.folded_tt_DP_timebins = np.zeros(exp_sequence_len, dtype=int)
+
+        for x in self.Exp_dict['output']['South(5)']['South_timetags'][cycle]:
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_S[x % exp_sequence_len] += 1
+            # self.folded_tt_S[x % exp_sequence_len] += 1
+        for x in self.Exp_dict['output']['North(8)']['North_timetags'][cycle]:
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_N[x % exp_sequence_len] += 1
+            # self.folded_tt_N[x % exp_sequence_len] += 1
+        for x in self.Exp_dict['output']['Bright(1,2)']['Bright_timetags'][cycle]:
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_BP[x % exp_sequence_len] += 1
+            # self.folded_tt_BP[x % exp_sequence_len] += 1
+        for x in self.Exp_dict['output']['Dark(3,4)']['Dark_timetags'][cycle]:
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_DP[x % exp_sequence_len] += 1
+            # self.folded_tt_DP[x % exp_sequence_len] += 1
+        for x in self.Exp_dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]:
+            if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
+                self.folded_tt_FS[x % exp_sequence_len] += 1
+            # self.folded_tt_FS[x % exp_sequence_len] += 1
+
+        self.folded_tt_S_directional = (np.array(self.folded_tt_S) + np.array(self.folded_tt_FS))
+        # self.folded_tt_N_directional = self.folded_tt_N
+        # TODO: ask dor -  switched folded_tt_N with folded_tt_N_directional
+        self.folded_tt_N_directional[:self.end_of_det_pulse_in_seq] = \
+            np.array(self.folded_tt_N[:self.end_of_det_pulse_in_seq]) \
+            + np.array(self.folded_tt_BP[:self.end_of_det_pulse_in_seq]) \
+            + np.array(self.folded_tt_DP[:self.end_of_det_pulse_in_seq])
+
+        self.folded_tt_BP_timebins[self.end_of_det_pulse_in_seq:] = self.folded_tt_BP[self.end_of_det_pulse_in_seq:]
+        self.folded_tt_DP_timebins[self.end_of_det_pulse_in_seq:] = self.folded_tt_DP[self.end_of_det_pulse_in_seq:]
+        # if self.pulses_location_in_seq_A or ((Config.sprint_pulse_amp_N[0] > 0) & (len(Config.sprint_pulse_amp_N) > 1)):
+        #     self.folded_tt_N_directional[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]] = \
+        #         (np.array(
+        #             self.folded_tt_N_directional[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]])
+        #          + (Config.sprint_pulse_amp_Early[1]
+        #             * np.array(self.folded_tt_BP[
+        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
+        #          + (Config.sprint_pulse_amp_Early[1]
+        #             * np.array(self.folded_tt_DP[
+        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
+        #          )
+        #     self.folded_tt_BP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]] = \
+        #         (np.array(
+        #             self.folded_tt_BP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]])
+        #          - (Config.sprint_pulse_amp_Early[1]
+        #             * np.array(self.folded_tt_BP[
+        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
+        #          )
+        #     self.folded_tt_DP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]] = \
+        #         (np.array(
+        #             self.folded_tt_DP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]])
+        #          - (Config.sprint_pulse_amp_Early[1]
+        #             * np.array(self.folded_tt_DP[
+        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
+        #          )
+
+    def fold_all_cycle_tt_histogram(self, exp_sequence_len):
 
         self.folded_tt_S = np.zeros(exp_sequence_len, dtype=int)
         self.folded_tt_N = np.zeros(exp_sequence_len, dtype=int)
@@ -304,10 +388,10 @@ class experiment_data_analysis:
         :return:
         '''
 
-        self.num_of_det_reflections_per_seq_S = np.zeros(self.number_of_PNSA_sequences)
-        self.num_of_det_reflections_per_seq_N = np.zeros(self.number_of_PNSA_sequences)
-        self.num_of_det_transmissions_per_seq_S = np.zeros(self.number_of_PNSA_sequences)
-        self.num_of_det_transmissions_per_seq_N = np.zeros(self.number_of_PNSA_sequences)
+        self.num_of_det_reflections_per_seq_S = np.zeros(self.number_of_sequences)
+        self.num_of_det_reflections_per_seq_N = np.zeros(self.number_of_sequences)
+        self.num_of_det_transmissions_per_seq_S = np.zeros(self.number_of_sequences)
+        self.num_of_det_transmissions_per_seq_N = np.zeros(self.number_of_sequences)
 
         self.num_of_det_reflections_per_seq_S_, \
         self.num_of_det_reflections_per_seq_N_, \
@@ -319,7 +403,7 @@ class experiment_data_analysis:
                 [
                     [] for _ in range(self.number_of_detection_pulses_per_seq)
                 ]
-                for _ in range(self.number_of_PNSA_sequences)
+                for _ in range(self.number_of_sequences)
             ] for _ in range(6)
         ]
 
@@ -335,7 +419,7 @@ class experiment_data_analysis:
                 [
                     [] for _ in range(self.number_of_SPRINT_pulses_per_seq)
                 ]
-                for _ in range(self.number_of_PNSA_sequences)
+                for _ in range(self.number_of_sequences)
             ] for _ in range(8)
         ]
 
@@ -490,9 +574,6 @@ class experiment_data_analysis:
         self.num_of_det_transmissions_per_seq = self.num_of_det_transmissions_per_seq_S \
                                                 + self.num_of_det_transmissions_per_seq_N
 
-        ## fold reflections and transmission
-        # self.fold_tt_histogram(exp_sequence_len=self.sequence_len)
-
         pass
 
     def calculate_running_averages(self, cycle_number):
@@ -527,14 +608,9 @@ class experiment_data_analysis:
         # Find all tansits for each of the conditions given in the list:
         for cond in cond_list:
             current_transit = []
-            for i in range(self.number_of_PNSA_sequences - len(cond) + 1):
+            for i in range(self.number_of_sequences - len(cond) + 1):
                 cond_check = (self.num_of_det_reflections_per_seq[i:(i + len(cond))] >= cond).astype(int)
                 if sum(cond_check) >= minimum_number_of_seq_detected:
-                    # TODO: ask dor (08.01.24) - what happens at [0,4,0]? and why including the middle at [2,0,2]?
-                    # adding to current transit the indices from first element satisfing the condition to the last element checked.
-                    # for example:
-                    # if the condition is [1,1,1] and for i=7000 the reflections were [0(i=7000),1 (i=7001),1 (i=7002)]
-                    # than current transit would add [7001,7002]
                     current_transit = np.unique(
                         current_transit + [*range(i + np.where(cond_check != 0)[0][0], (i + len(cond)))]).tolist()
                 elif len(current_transit) > 1:
@@ -637,6 +713,7 @@ class experiment_data_analysis:
         '''
 
         self.all_transits_seq_indx_per_cond[cond_num] = self.find_transit_events(cond_list=transit_condition, minimum_number_of_seq_detected=2)
+        self.all_transits_length_per_cond[cond_num] = self.get_transits_length(self.all_transits_seq_indx_per_cond[cond_num])
 
         # Analyze SPRINT data during transits:
         (self.seq_with_data_points[cond_num], self.reflection_SPRINT_data[cond_num], self.transmission_SPRINT_data[cond_num],
@@ -646,7 +723,7 @@ class experiment_data_analysis:
         # print(self.potential_data)
         # Analyze SPRINT data when no transit occur:
         self.all_seq_without_transits = [
-            np.delete(np.arange(0, self.number_of_PNSA_sequences, 1, dtype='int'),
+            np.delete(np.arange(0, self.number_of_sequences, 1, dtype='int'),
                       sum(self.all_transits_seq_indx_per_cond[cond_num], [])).tolist()
         ]
         (_, self.reflection_SPRINT_data_without_transits[cond_num], self.transmission_SPRINT_data_without_transits[cond_num],
@@ -662,61 +739,6 @@ class experiment_data_analysis:
         # self.num_of_total_SPRINT_transmissions = sum(self.transmission_SPRINT_data_without_transits)
         # self.num_of_total_SPRINT_BP_counts = sum(self.BP_counts_SPRINT_data_without_transits)
         # self.num_of_total_SPRINT_DP_counts = sum(self.DP_counts_SPRINT_data_without_transits)
-
-    def save_experiment_results(self, experiment_comment, daily_experiment_comments):
-        """
-        Responsible for saving all the results gathered in the experiment and required by analysis
-        Return a flag telling if save should occur at all.
-        TODO: add 'save_experiment_results' to BaseExperiment, Make 'run' method invoke it at the end
-        """
-
-        # Save all other files
-        results = {
-            "folded_tt_S_cumulative_avg": self.folded_tt_S_cumulative_avg,
-            "folded_tt_N_cumulative_avg": self.folded_tt_N_cumulative_avg,
-            "folded_tt_BP_cumulative_avg": self.folded_tt_BP_cumulative_avg,
-            "folded_tt_DP_cumulative_avg": self.folded_tt_DP_cumulative_avg,
-            "folded_tt_FS_cumulative_avg": self.folded_tt_FS_cumulative_avg,
-            "folded_tt_S_directional_cumulative_avg": self.folded_tt_S_directional_cumulative_avg,
-            "folded_tt_N_directional_cumulative_avg": self.folded_tt_N_directional_cumulative_avg,
-            "folded_tt_BP_timebins_cumulative_avg": self.folded_tt_BP_timebins_cumulative_avg,
-            "folded_tt_DP_timebins_cumulative_avg": self.folded_tt_DP_timebins_cumulative_avg,
-
-            "MZ_BP_counts_balancing_batch": self.batcher['MZ_BP_counts_balancing_batch'],
-            "MZ_BP_counts_balancing_check_batch": self.batcher['MZ_BP_counts_balancing_check_batch'],
-            "MZ_DP_counts_balancing_batch": self.batcher['MZ_DP_counts_balancing_batch'],
-            "MZ_DP_counts_balancing_check_batch": self.batcher['MZ_DP_counts_balancing_check_batch'],
-            "Phase_Correction_vec_batch": self.batcher['Phase_Correction_vec_batch'],
-            "Phase_Correction_min_vec_batch": self.batcher['Phase_Correction_min_vec_batch'],
-            "Phase_Correction_value": self.batcher['Phase_Correction_value'],
-            "MZ_S_tot_counts": self.batcher['MZ_S_tot_counts'],
-
-            "Index_of_Sequences_with_data_points": self.batcher['seq_with_data_points_batch'],
-            "Reflections_per_data_point": self.batcher['reflection_SPRINT_data_batch'],
-            "Transmissions_per_data_point": self.batcher['transmission_SPRINT_data_batch'],
-            "Bright_port_counts_per_data_point": self.batcher['BP_counts_SPRINT_data_batch'],
-            "Dark_port_counts_per_data_point": self.batcher['DP_counts_SPRINT_data_batch'],
-
-            "FLR_measurement": self.batcher['flr_batch'],
-            "lock_error": self.batcher['lock_err_batch'],
-            "k_ex": self.batcher['k_ex_batch'],
-            "interference_error": self.batcher['interference_error_batch'],
-            "exp_timestr": experiment_comment,
-
-            "exp_comment": f'transit condition: {self.transit_condition}; reflection threshold: {self.reflection_threshold} @ {int(self.reflection_threshold_time / 1e6)} ms',
-            "daily_experiment_comments": daily_experiment_comments,
-
-            "experiment_config_values": self.Exp_Values,
-
-            "run_parameters": self.run_parameters
-        }
-
-        # Save the results
-        if self.playback['active']:
-            resolved_path = self.playback['save_results_path']
-        else:
-            resolved_path = self.bd_results.get_sequence_folder(sequence_definitions)
-        self.bd_results.save_results(results, resolved_path)
 
     def results_to_dictionary(self):
         '''
@@ -839,6 +861,172 @@ class experiment_data_analysis:
 
         return dictionary
 
+    def get_transits_length(self, all_transits_seq_indx):
+        '''
+        Build an array with the length of all the transits.
+        :return:
+        '''
+        all_transits_length = []
+        for transit in all_transits_seq_indx:
+            transit_length = (max(sum(self.num_of_det_reflections_per_seq_[transit[-1]], [])) -
+                              min(sum(self.num_of_det_reflections_per_seq_[transit[0]], [])))
+            all_transits_length.append(transit_length)
+
+        return all_transits_length
+
+    def plot_results(self):
+        '''
+
+        :return:
+        '''
+
+        self.f1 = plt.figure('North, Bright and Dark ports with filter lines')
+        plt.plot(self.folded_tt_N_directional_cumulative_avg, label='"N" detectors')
+        plt.plot(self.folded_tt_BP_timebins_cumulative_avg, label='"BP" detectors')
+        plt.plot(self.folded_tt_DP_timebins_cumulative_avg, label='"DP" detectors')
+        plt.plot(self.filter_N * max(self.folded_tt_N_directional_cumulative_avg +
+                                     self.folded_tt_S_directional_cumulative_avg), '--k', label='Filter "N"')
+        plt.legend(loc='upper right')
+
+        self.f2 = plt.figure('South and Fast Switch (FS) ports with filter lines')
+        plt.plot(self.folded_tt_S_directional_cumulative_avg, label='"S" detectors')
+        plt.plot(self.filter_S * max(self.folded_tt_N_directional_cumulative_avg +
+                                     self.folded_tt_S_directional_cumulative_avg), '--k', label='Filter "S"')
+        plt.legend(loc='upper right')
+
+        self.transits_fig = []
+        self.transit_subplots = []
+        self.SPRINT_figure = []
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        for indx, cond in enumerate(self.transit_conditions):
+            # create figure for transits information:
+            self.transits_fig.append(plt.figure(str(cond) + ' - Transit information'))
+            self.transit_subplots.append(plt.subplot2grid((2, 2), (0, 0), colspan=2, rowspan=1))
+            self.transit_subplots.append(plt.subplot2grid((2, 2), (1, 0), colspan=2, rowspan=1))
+
+            # plot hist of transit durations:
+            all_transit_durations = [elem for vec in self.batcher['all_transits_length_per_cond'] for elem in vec[indx]]
+            self.transit_subplots[0].hist(all_transit_durations, range(1, max(all_transit_durations), 50))
+            self.transit_subplots[0].set(xlabel='Duration [ns]', ylabel='Counts [# of transits]')
+
+            # plot all sequences with transit events
+            seq_with_transit_events = np.zeros(self.number_of_sequences)
+            seq_with_transit_events[[vec for elem in
+                                     self.Exp_dict['Analysis_results'][str(cond)]['all_transits_seq_indx_per_cond']
+                                     for vec in elem]] += 1
+            textstr_transit_event_counter = (r'$N_{Transits Total} = %s $' %
+                                             (self.Exp_dict['Analysis_results'][str(cond)]['number_of_transits'],) +
+                                             '[Counts]')
+            self.transit_subplots[1].plot(range(self.number_of_sequences), seq_with_transit_events,
+                                          label='Transit events accumulated')
+            self.transit_subplots[1].set(xlabel='Sequence [#]', ylabel='Counts [Photons]')
+            self.transit_subplots[1].text(0.02, 0.92, textstr_transit_event_counter,
+                                          transform=self.transit_subplots[1].transAxes,
+                                          fontsize=14, verticalalignment='top', bbox=props)
+
+
+            # SPRINT results box
+            reflections = self.Exp_dict['Analysis_results'][str(cond)]['reflection']
+            transmissions = self.Exp_dict['Analysis_results'][str(cond)]['transmission']
+            reflections_without_transits = self.Exp_dict['Analysis_results'][str(cond)]['reflection_without_transits']
+            transmissions_without_transits = self.Exp_dict['Analysis_results'][str(cond)]['transmission_without_transits']
+            if (reflections_without_transits + transmissions_without_transits) > 0:
+                SPRINT_reflections_percentage_without_transits = (
+                        '%.1f' % ((reflections_without_transits * 100) /
+                                  (reflections_without_transits + transmissions_without_transits)))
+                SPRINT_transmissions_percentage_without_transits = (
+                        '%.1f' % ((transmissions_without_transits * 100) /
+                                  (reflections_without_transits + transmissions_without_transits)))
+            else:
+                SPRINT_reflections_percentage_without_transits = '%.1f' % 0
+                SPRINT_transmissions_percentage_without_transits = '%.1f' % 0
+
+            SPRINT_reflections_with_transits = '%d' % reflections
+            SPRINT_reflections = f'${SPRINT_reflections_with_transits}_{{({SPRINT_reflections_percentage_without_transits}\%)}}$'
+            SPRINT_reflections_text = '$R_{SPRINT}$'
+            SPRINT_transmissions_with_transits = '%d' % transmissions
+            SPRINT_transmissions = f'${SPRINT_transmissions_with_transits}_{{({SPRINT_transmissions_percentage_without_transits}\%)}}$'
+            SPRINT_transmissions_text = '$T_{SPRINT}$'
+            SPRINT_Score = f'{SPRINT_reflections} - {SPRINT_transmissions}'
+            SPRINT_text = f'{SPRINT_reflections_text} {SPRINT_reflections} - {SPRINT_transmissions} {SPRINT_transmissions_text}'
+            props_SPRINT = dict(boxstyle='round', edgecolor='gray', linewidth=2, facecolor='gray', alpha=0.5)
+
+            # Coherence results box
+            bright = self.Exp_dict['Analysis_results'][str(cond)]['Bright']
+            dark = self.Exp_dict['Analysis_results'][str(cond)]['Dark']
+            bright_without_transits = self.Exp_dict['Analysis_results'][str(cond)]['Bright_without_transits']
+            dark_without_transits = self.Exp_dict['Analysis_results'][str(cond)]['Dark_without_transits']
+            if (bright_without_transits + dark_without_transits) > 0:
+                SPRINT_BP_percentage_without_transits = (
+                        '%.1f' % ((bright_without_transits * 100) / (bright_without_transits + dark_without_transits)))
+                SPRINT_DP_percentage_without_transits = (
+                        '%.1f' % ((dark_without_transits * 100) / (bright_without_transits + dark_without_transits)))
+            else:
+                SPRINT_BP_percentage_without_transits = '%.1f' % 0
+                SPRINT_DP_percentage_without_transits = '%.1f' % 0
+
+            SPRINT_BP_counts_with_transits = '%d' % bright
+            SPRINT_BP_counts = f'${SPRINT_BP_counts_with_transits}_{{({SPRINT_BP_percentage_without_transits}\%)}}$'
+            SPRINT_BP_counts_text = '$BP_{SPRINT}$'
+            SPRINT_DP_counts_with_transits = '%d' % dark
+            SPRINT_DP_counts = f'${SPRINT_DP_counts_with_transits}_{{({SPRINT_DP_percentage_without_transits}\%)}}$'
+            SPRINT_DP_counts_text = '$DP_{SPRINT}$'
+            SPRINT_Coherence_Score = f'{SPRINT_BP_counts} - {SPRINT_DP_counts}'
+            SPRINT_Coherence_text = f'{SPRINT_BP_counts_text} {SPRINT_BP_counts} - {SPRINT_DP_counts} {SPRINT_DP_counts_text}'
+            props_SPRINT_coherence = dict(boxstyle='round', edgecolor='gray', linewidth=2, facecolor='gray', alpha=0.5)
+
+            # create figure for SPRINT information:
+            self.SPRINT_figure = plt.figure(str(cond) + ' - SPRINT information')
+            ax = plt.gca()
+            seq_with_SPRINT_data = np.zeros(self.number_of_sequences)
+            seq_with_SPRINT_data[[vec for elem in
+                                  self.Exp_dict['Analysis_results'][str(cond)]['seq_with_data_points']
+                                  for vec in elem]] += 1
+            plt.plot(range(self.number_of_sequences), seq_with_SPRINT_data,
+                       label='All transit events with data')
+            plt.xlabel('Sequence [#]')
+            plt.ylabel('Counts [Photons]')
+            plt.legend(loc='upper right')
+            plt.text(0.5, 1.1, SPRINT_text, transform=ax.transAxes, fontsize=26, verticalalignment='top',
+                     horizontalalignment='center', bbox=props_SPRINT)
+            plt.text(0.5, 0.6, SPRINT_Coherence_text, transform=ax.transAxes, fontsize=26, verticalalignment='top',
+                     horizontalalignment='center', bbox=props_SPRINT_coherence)
+
+        plt.show()
+
+    def save_dict_as_folders_and_npz(self, data_dict, base_path):
+        """
+        Save a dictionary to folders with .npz files.
+
+        Parameters:
+            data_dict (dict): Dictionary to be saved.
+            base_path (str): Base path where folders and .npz files will be created.
+        """
+        # Ensure the base path exists
+        if not os.path.exists(base_path):
+            os.makedirs(base_path)
+        self.save_to_folder(base_path, data_dict)
+
+    def save_to_folder(self, folder_path, data):
+        """
+        Recursively save dictionary data into folders and .npz files.
+
+        Parameters:
+            folder_path (str): Path of the current folder.
+            data (dict): Dictionary data to be saved.
+        """
+        for key, value in data.items():
+            current_path = os.path.join(folder_path, key)
+
+            if isinstance(value, dict):
+                # If value is a dictionary, create a new folder
+                if not os.path.exists(current_path):
+                    os.makedirs(current_path)
+                # Recursively process this dictionary
+                self.save_to_folder(current_path, value)
+            else:
+                # If value is not a dictionary, save it as a .npz file
+                np.savez(os.path.join(current_path + '.npz'), data=value)
 
     # Class's constructor
     def __init__(self, exp_type='QRAM', exp_date='20230719', exp_time=None, transit_conditions=[[[2, 1, 2]]]):
@@ -915,13 +1103,16 @@ class experiment_data_analysis:
 
         self.transit_conditions = transit_conditions
 
+        # # Open folder and load to dictionary
+        # root = Tk()
+        # self.exp_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
+        # self.data = Experiment_data_load.DictionaryBuilder()
+        # self.Exp_dict = self.data.load_files_to_dict(self.exp_data_path)
+        # messagebox.showinfo(title='Success!', message='Experiment data is ready to use.')
+        # root.destroy()
+
         # Open folder and load to dictionary
-        root = Tk()
-        self.exp_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
-        self.data = Experiment_data_load.DictionaryBuilder()
-        self.Exp_dict = self.data.load_files_to_dict(self.exp_data_path)
-        messagebox.showinfo(title='Success!', message='Experiment data is ready to use.')
-        root.destroy()
+        self.Exp_dict = self.open_folder_to_dictionary()
 
         # Divide data to background and experiment data:
         exp_key = list(self.Exp_dict.keys())[0]
@@ -942,29 +1133,38 @@ class experiment_data_analysis:
         for cycle in tqdm(range(number_of_cycles)):
             self.ingest_time_tags(self.Background_dict, cycle)
             self.experiment_calculations()
-            # self.calculate_running_averages(cycle+1)
             for condition_number, transit_condition in enumerate(self.transit_conditions):
                 ### Find transits and extract SPRINT data:  ###
                 self.get_transit_data(transit_condition, condition_number)
             self.batcher.batch_all(self)
         self.Background_dict['Analysis_results'] = self.results_to_dictionary()
+        self.save_dict_as_folders_and_npz(self.Background_dict['Analysis_results'], self.exp_data_path)
 
         # "real" experiment analysis:
         # check number of cycles in experiment:
         number_of_cycles = len(list(self.Exp_dict['output'][list(self.Exp_dict['output'].keys())[0]].values())[0])
         self.init_params_for_experiment(self.Exp_dict)
+
         # Initialize the batcher
         self.batcher.set_batch_size(number_of_cycles)
         self.batcher.empty_all()
+
         for cycle in tqdm(range(number_of_cycles)):
             self.ingest_time_tags(self.Exp_dict, cycle)
             self.experiment_calculations()
-            # self.calculate_running_averages(cycle+1)
+
+            # fold time-tags and accumulate to a running average:
+            self.fold_tt_histogram(cycle, self.sequence_len)
+            self.calculate_running_averages(cycle + 1)
+
             for condition_number, transit_condition in enumerate(self.transit_conditions):
                 ### Find transits and extract SPRINT data:  ###
                 self.get_transit_data(transit_condition, condition_number)
             self.batcher.batch_all(self)
+
         self.Exp_dict['Analysis_results'] = self.results_to_dictionary()
+        self.plot_results()
+        self.save_dict_as_folders_and_npz(self.Exp_dict['Analysis_results'], self.exp_data_path)
 
         self.batcher.empty_all()
 
