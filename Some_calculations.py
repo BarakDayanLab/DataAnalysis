@@ -20,4 +20,3 @@ x = 1 - poisson.cdf(k=0, mu=mu_COW)
 ## Calculation of Magnetic Field / magnetic dipole moment ##
 
 mu_0 = 4 * const.pi * 1e11  # vacuum permeability [G * m / A] - gauss metre per ampere
-B_0 =

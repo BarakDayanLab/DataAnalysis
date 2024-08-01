@@ -1,6 +1,7 @@
 import Experiment_data_load
 import numpy as np
 import os
+import ntpath
 import sys
 import json
 import math
@@ -84,6 +85,7 @@ class experiment_data_analysis:
         # Open folder and load to dictionary
         root = Tk()
         self.exp_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
+        # self.exp_data_path.replace('/', os.sep)
         data = Experiment_data_load.DictionaryBuilder()
         dictionary = data.load_files_to_dict(self.exp_data_path)
         messagebox.showinfo(title='Success!', message='Experiment data is ready to use.')
@@ -443,17 +445,19 @@ class experiment_data_analysis:
                     if (tt_inseq >= start_pulse_time_in_seq) and (tt_inseq <= end_pulse_time_in_seq):
                         if indx < self.number_of_detection_pulses_per_seq:
                             if tup[2] == 'N':
-                                self.num_of_det_transmissions_per_seq_N_[seq_num][indx].append(element)
+                                self.num_of_det_transmissions_per_seq_N_[seq_num][indx].append(int(element))
+                                self.num_of_det_transmissions_per_seq_[seq_num][indx].append(int(element))
                             if tup[2] == 'S':
-                                self.num_of_det_reflections_per_seq_S_[seq_num][indx].append(element)
+                                self.num_of_det_reflections_per_seq_S_[seq_num][indx].append(int(element))
+                                self.num_of_det_reflections_per_seq_[seq_num][indx].append(int(element))
                         else:
                             ind = indx - self.number_of_detection_pulses_per_seq
                             if tup[2] == 'n':
-                                self.num_of_SPRINT_transmissions_per_seq_N_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(element)
+                                self.num_of_SPRINT_transmissions_per_seq_N_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(int(element))
                             if tup[2] == 's':
-                                self.num_of_SPRINT_reflections_per_seq_S_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(element)
+                                self.num_of_SPRINT_reflections_per_seq_S_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(int(element))
 
                 if tt_inseq <= self.end_of_det_pulse_in_seq:  # The part of the detection pulses in the sequence
                     self.num_of_det_reflections_per_seq_S[seq_num] += self.filter_S[tt_inseq]
@@ -479,20 +483,20 @@ class experiment_data_analysis:
                     if (tt_inseq >= start_pulse_time_in_seq) and (tt_inseq <= end_pulse_time_in_seq):
                         if indx < self.number_of_detection_pulses_per_seq:
                             if tup[2] == 'N':
-                                self.num_of_det_transmissions_per_seq_N_[seq_num][indx].append(element)
-                                self.num_of_det_transmissions_per_seq_[seq_num][indx].append(element)
+                                self.num_of_det_transmissions_per_seq_N_[seq_num][indx].append(int(element))
+                                self.num_of_det_transmissions_per_seq_[seq_num][indx].append(int(element))
                             if tup[2] == 'S':
-                                self.num_of_det_reflections_per_seq_S_[seq_num][indx].append(element)
-                                self.num_of_det_reflections_per_seq_[seq_num][indx].append(element)
+                                self.num_of_det_reflections_per_seq_S_[seq_num][indx].append(int(element))
+                                self.num_of_det_reflections_per_seq_[seq_num][indx].append(int(element))
                         else:
                             ind = indx - self.number_of_detection_pulses_per_seq
                             if tup[2] == 'n':
-                                self.num_of_SPRINT_transmissions_per_seq_N_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(element)
+                                self.num_of_SPRINT_transmissions_per_seq_N_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(int(element))
                             if tup[2] == 's':
-                                self.num_of_SPRINT_reflections_per_seq_S_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(element)
-                            self.num_of_BP_counts_per_seq_in_SPRINT_pulse[seq_num][ind].append(element)
+                                self.num_of_SPRINT_reflections_per_seq_S_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(int(element))
+                            self.num_of_BP_counts_per_seq_in_SPRINT_pulse[seq_num][ind].append(int(element))
 
                 if tt_inseq <= self.end_of_det_pulse_in_seq:  # The part of the detection pulses in the sequence
                     self.num_of_det_reflections_per_seq_S[seq_num] += self.filter_S[tt_inseq]
@@ -518,20 +522,20 @@ class experiment_data_analysis:
                     if (tt_inseq >= start_pulse_time_in_seq) and (tt_inseq <= end_pulse_time_in_seq):
                         if indx < self.number_of_detection_pulses_per_seq:
                             if tup[2] == 'N':
-                                self.num_of_det_transmissions_per_seq_N_[seq_num][indx].append(element)
-                                self.num_of_det_transmissions_per_seq_[seq_num][indx].append(element)
+                                self.num_of_det_transmissions_per_seq_N_[seq_num][indx].append(int(element))
+                                self.num_of_det_transmissions_per_seq_[seq_num][indx].append(int(element))
                             if tup[2] == 'S':
-                                self.num_of_det_reflections_per_seq_S_[seq_num][indx].append(element)
-                                self.num_of_det_reflections_per_seq_[seq_num][indx].append(element)
+                                self.num_of_det_reflections_per_seq_S_[seq_num][indx].append(int(element))
+                                self.num_of_det_reflections_per_seq_[seq_num][indx].append(int(element))
                         else:
                             ind = indx - self.number_of_detection_pulses_per_seq
                             if tup[2] == 'n':
-                                self.num_of_SPRINT_transmissions_per_seq_N_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(element)
+                                self.num_of_SPRINT_transmissions_per_seq_N_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(int(element))
                             if tup[2] == 's':
-                                self.num_of_SPRINT_reflections_per_seq_S_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(element)
-                            self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_num][ind].append(element)
+                                self.num_of_SPRINT_reflections_per_seq_S_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(int(element))
+                            self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_num][ind].append(int(element))
 
                 if tt_inseq <= self.end_of_det_pulse_in_seq:  # The part of the detection pulses in the sequence
                     self.num_of_det_reflections_per_seq_S[seq_num] += self.filter_S[tt_inseq]
@@ -546,19 +550,19 @@ class experiment_data_analysis:
                     if (tt_inseq >= tup[0]) and (tt_inseq <= tup[1]):
                         if indx < self.number_of_detection_pulses_per_seq:
                             if tup[2] == 'N':
-                                self.num_of_det_reflections_per_seq_N_[seq_num][indx].append(element)
-                                self.num_of_det_reflections_per_seq_[seq_num][indx].append(element)
+                                self.num_of_det_reflections_per_seq_N_[seq_num][indx].append(int(element))
+                                self.num_of_det_reflections_per_seq_[seq_num][indx].append(int(element))
                             if tup[2] == 'S':
-                                self.num_of_det_transmissions_per_seq_S_[seq_num][indx].append(element)
-                                self.num_of_det_transmissions_per_seq_[seq_num][indx].append(element)
+                                self.num_of_det_transmissions_per_seq_S_[seq_num][indx].append(int(element))
+                                self.num_of_det_transmissions_per_seq_[seq_num][indx].append(int(element))
                         else:
                             ind = indx - self.number_of_detection_pulses_per_seq
                             if tup[2] == 'n':
-                                self.num_of_SPRINT_reflections_per_seq_N_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(element)
+                                self.num_of_SPRINT_reflections_per_seq_N_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_reflections_per_seq_[seq_num][ind].append(int(element))
                             if tup[2] == 's':
-                                self.num_of_SPRINT_transmissions_per_seq_S_[seq_num][ind].append(element)
-                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(element)
+                                self.num_of_SPRINT_transmissions_per_seq_S_[seq_num][ind].append(int(element))
+                                self.num_of_SPRINT_transmissions_per_seq_[seq_num][ind].append(int(element))
 
                 if tt_inseq <= self.end_of_det_pulse_in_seq:  # The part of the detection pulses in the sequence
                     seq_num = (element - 1) // self.sequence_len
@@ -748,47 +752,47 @@ class experiment_data_analysis:
 
         dictionary = dict()
 
-        ## General data for background experiment ##
-
-        # transmission data in detection pulses in sequences:
-        dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
-             'num_of_det_transmissions_per_seq']
-        dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
-             'num_of_det_transmissions_per_seq_N']
-        dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
-             'num_of_det_transmissions_per_seq_S']
-
-        # reflection data in detection pulses in sequences:
-        dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
-             'num_of_det_reflections_per_seq']
-        dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
-             'num_of_det_reflections_per_seq_N']
-        dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
-             'num_of_det_reflections_per_seq_S']
-
-        # transmission data in SPRINT pulses in sequences:
-        dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
-            'num_of_SPRINT_transmissions_per_seq']
-        dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
-            'num_of_SPRINT_transmissions_per_seq_N']
-        dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
-            'num_of_SPRINT_transmissions_per_seq_S']
-
-        # reflection data in SPRINT pulses in sequences:
-        dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
-            'num_of_SPRINT_reflections_per_seq']
-        dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
-            'num_of_SPRINT_reflections_per_seq_N']
-        dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
-            'num_of_SPRINT_reflections_per_seq_S']
-
-        # Bright port data in SPRINT pulses in sequence:
-        dictionary['bright_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
-            'num_of_BP_counts_per_seq_in_SPRINT_pulse']
-
-        # Dark port data in SPRINT pulses in sequence:
-        dictionary['dark_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
-            'num_of_DP_counts_per_seq_in_SPRINT_pulse']
+        # ## General data for background experiment ##
+        #
+        # # transmission data in detection pulses in sequences:
+        # dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
+        #      'num_of_det_transmissions_per_seq']
+        # dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
+        #      'num_of_det_transmissions_per_seq_N']
+        # dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
+        #      'num_of_det_transmissions_per_seq_S']
+        #
+        # # reflection data in detection pulses in sequences:
+        # dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
+        #      'num_of_det_reflections_per_seq']
+        # dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
+        #      'num_of_det_reflections_per_seq_N']
+        # dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
+        #      'num_of_det_reflections_per_seq_S']
+        #
+        # # transmission data in SPRINT pulses in sequences:
+        # dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        #     'num_of_SPRINT_transmissions_per_seq']
+        # dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
+        #     'num_of_SPRINT_transmissions_per_seq_N']
+        # dictionary['transmission_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
+        #     'num_of_SPRINT_transmissions_per_seq_S']
+        #
+        # # reflection data in SPRINT pulses in sequences:
+        # dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        #     'num_of_SPRINT_reflections_per_seq']
+        # dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_N'] = self.batcher[
+        #     'num_of_SPRINT_reflections_per_seq_N']
+        # dictionary['reflection_data_in_SPRINT_pulses_per_seq_per_cycle_S'] = self.batcher[
+        #     'num_of_SPRINT_reflections_per_seq_S']
+        #
+        # # Bright port data in SPRINT pulses in sequence:
+        # dictionary['bright_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        #     'num_of_BP_counts_per_seq_in_SPRINT_pulse']
+        #
+        # # Dark port data in SPRINT pulses in sequence:
+        # dictionary['dark_port_data_in_SPRINT_pulses_per_seq_per_cycle'] = self.batcher[
+        #     'num_of_DP_counts_per_seq_in_SPRINT_pulse']
 
         ## Sorting and summarizing the data analysis for each condition ##
         for indx, condition in enumerate(self.transit_conditions):
@@ -895,10 +899,10 @@ class experiment_data_analysis:
         plt.legend(loc='upper right')
 
         self.transits_fig = []
-        self.transit_subplots = []
         self.SPRINT_figure = []
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
         for indx, cond in enumerate(self.transit_conditions):
+            self.transit_subplots = []
             # create figure for transits information:
             self.transits_fig.append(plt.figure(str(cond) + ' - Transit information'))
             self.transit_subplots.append(plt.subplot2grid((2, 2), (0, 0), colspan=2, rowspan=1))
@@ -911,9 +915,10 @@ class experiment_data_analysis:
 
             # plot all sequences with transit events
             seq_with_transit_events = np.zeros(self.number_of_sequences)
-            seq_with_transit_events[[vec for elem in
-                                     self.Exp_dict['Analysis_results'][str(cond)]['all_transits_seq_indx_per_cond']
-                                     for vec in elem]] += 1
+            for cycle in range(self.number_of_cycles):
+                seq_with_transit_events[[vec for elem in
+                                         self.Exp_dict['Analysis_results'][str(cond)]['indices_of_all_sequences_with_transits_per_cycle'][cycle]
+                                         for vec in elem]] += 1
             textstr_transit_event_counter = (r'$N_{Transits Total} = %s $' %
                                              (self.Exp_dict['Analysis_results'][str(cond)]['number_of_transits'],) +
                                              '[Counts]')
@@ -980,7 +985,7 @@ class experiment_data_analysis:
             ax = plt.gca()
             seq_with_SPRINT_data = np.zeros(self.number_of_sequences)
             seq_with_SPRINT_data[[vec for elem in
-                                  self.Exp_dict['Analysis_results'][str(cond)]['seq_with_data_points']
+                                  self.Exp_dict['Analysis_results'][str(cond)]['sequence_indices_with_data_points_per_cycle']
                                   for vec in elem]] += 1
             plt.plot(range(self.number_of_sequences), seq_with_SPRINT_data,
                        label='All transit events with data')
@@ -992,9 +997,9 @@ class experiment_data_analysis:
             plt.text(0.5, 0.6, SPRINT_Coherence_text, transform=ax.transAxes, fontsize=26, verticalalignment='top',
                      horizontalalignment='center', bbox=props_SPRINT_coherence)
 
-        plt.show()
+        plt.show(block=True)
 
-    def save_dict_as_folders_and_npz(self, data_dict, base_path):
+    def save_dict_as_folders_and_variables(self, data_dict, base_path):
         """
         Save a dictionary to folders with .npz files.
 
@@ -1026,7 +1031,14 @@ class experiment_data_analysis:
                 self.save_to_folder(current_path, value)
             else:
                 # If value is not a dictionary, save it as a .npz file
-                np.savez(os.path.join(current_path + '.npz'), data=value)
+                if isinstance(value, np.ndarray):
+                    np.savez(os.path.join(current_path + '.npz'), data=value)
+                elif isinstance(value, list):
+                    with open(os.path.join(current_path + '.json'), 'w') as file:
+                        try:
+                            json.dump(value, file)
+                        except Exception as error:
+                            print("An error occurred:", error)
 
     # Class's constructor
     def __init__(self, exp_type='QRAM', exp_date='20230719', exp_time=None, transit_conditions=[[[2, 1, 2]]]):
@@ -1119,18 +1131,18 @@ class experiment_data_analysis:
         for key in list(self.Exp_dict.keys()):
             if 'without' in key.lower():
                 self.Background_dict = self.Exp_dict[key]
-            else:
+            elif 'with' in key.lower():
                 exp_key = key
         self.Exp_dict = self.Exp_dict[exp_key]
 
         # background analysis:
         # check number of cycles in experiment:
-        number_of_cycles = len(list(self.Background_dict['output'][list(self.Background_dict['output'].keys())[0]].values())[0])
+        self.number_of_cycles = len(list(self.Background_dict['output'][list(self.Background_dict['output'].keys())[0]].values())[0])
         self.init_params_for_experiment(self.Background_dict)
         # Initialize the batcher
-        self.batcher.set_batch_size(number_of_cycles)
+        self.batcher.set_batch_size(self.number_of_cycles)
         self.batcher.empty_all()
-        for cycle in tqdm(range(number_of_cycles)):
+        for cycle in tqdm(range(self.number_of_cycles)):
             self.ingest_time_tags(self.Background_dict, cycle)
             self.experiment_calculations()
             for condition_number, transit_condition in enumerate(self.transit_conditions):
@@ -1138,18 +1150,20 @@ class experiment_data_analysis:
                 self.get_transit_data(transit_condition, condition_number)
             self.batcher.batch_all(self)
         self.Background_dict['Analysis_results'] = self.results_to_dictionary()
-        self.save_dict_as_folders_and_npz(self.Background_dict['Analysis_results'], self.exp_data_path)
+        self.save_dict_as_folders_and_variables({'Analysis_results': {
+                                                          'background': self.Background_dict['Analysis_results']
+                                                          }}, self.exp_data_path)
 
         # "real" experiment analysis:
         # check number of cycles in experiment:
-        number_of_cycles = len(list(self.Exp_dict['output'][list(self.Exp_dict['output'].keys())[0]].values())[0])
+        self.number_of_cycles = len(list(self.Exp_dict['output'][list(self.Exp_dict['output'].keys())[0]].values())[0])
         self.init_params_for_experiment(self.Exp_dict)
 
         # Initialize the batcher
-        self.batcher.set_batch_size(number_of_cycles)
+        self.batcher.set_batch_size(self.number_of_cycles)
         self.batcher.empty_all()
 
-        for cycle in tqdm(range(number_of_cycles)):
+        for cycle in tqdm(range(self.number_of_cycles)):
             self.ingest_time_tags(self.Exp_dict, cycle)
             self.experiment_calculations()
 
@@ -1163,9 +1177,10 @@ class experiment_data_analysis:
             self.batcher.batch_all(self)
 
         self.Exp_dict['Analysis_results'] = self.results_to_dictionary()
+        self.save_dict_as_folders_and_variables({'Analysis_results': {
+                                                                'experiment': self.Exp_dict['Analysis_results']
+                                                            }}, self.exp_data_path)
         self.plot_results()
-        self.save_dict_as_folders_and_npz(self.Exp_dict['Analysis_results'], self.exp_data_path)
-
         self.batcher.empty_all()
 
 if __name__ == '__main__':
