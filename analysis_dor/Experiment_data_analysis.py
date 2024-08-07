@@ -744,7 +744,7 @@ class experiment_data_analysis:
         # self.num_of_total_SPRINT_BP_counts = sum(self.BP_counts_SPRINT_data_without_transits)
         # self.num_of_total_SPRINT_DP_counts = sum(self.DP_counts_SPRINT_data_without_transits)
 
-    def results_to_dictionary(self):
+    def results_to_dictionary(self, is_exp=False):
         '''
         Take all the results from the batcher and summarize them into a dictionary.
         :return:
@@ -795,6 +795,7 @@ class experiment_data_analysis:
         #     'num_of_DP_counts_per_seq_in_SPRINT_pulse']
 
         ## Sorting and summarizing the data analysis for each condition ##
+        dictionary['SNR'] = []
         for indx, condition in enumerate(self.transit_conditions):
             dictionary[str(condition)] = dict()
             # Handle transits related data:
@@ -809,6 +810,14 @@ class experiment_data_analysis:
                 # Save index of sequences with transits per cycle:
                 dictionary[str(condition)]['indices_of_all_sequences_with_transits_per_cycle'].append(lst[indx])
             dictionary[str(condition)]['number_of_sequences_with_transits'] -= dictionary[str(condition)]['number_of_transits']
+            if is_exp:
+                if self.Background_dict['Analysis_results'][str(condition)]['number_of_transits'] == 0:
+                    dictionary[str(condition)]['SNR'] = np.nan
+                else:
+                    dictionary[str(condition)]['SNR'] = ((dictionary[str(condition)]['number_of_transits'] / self.number_of_cycles) /
+                                                         (self.Background_dict['Analysis_results'][str(condition)]['number_of_transits'] /
+                                                          len(list(self.Background_dict['output'][list(self.Background_dict['output'].keys())[0]].values())[0])))
+                dictionary['SNR'].append([str(condition), dictionary[str(condition)]['SNR']])
 
             # Handle SPRINT data results for transit events:
 
@@ -991,10 +1000,10 @@ class experiment_data_analysis:
                        label='All transit events with data')
             plt.xlabel('Sequence [#]')
             plt.ylabel('Counts [Photons]')
-            plt.legend(loc='upper right')
-            plt.text(0.5, 1.1, SPRINT_text, transform=ax.transAxes, fontsize=26, verticalalignment='top',
+            # plt.legend(loc='upper right')
+            plt.text(0.5, 1.2, SPRINT_text, transform=ax.transAxes, fontsize=24, verticalalignment='top',
                      horizontalalignment='center', bbox=props_SPRINT)
-            plt.text(0.5, 0.6, SPRINT_Coherence_text, transform=ax.transAxes, fontsize=26, verticalalignment='top',
+            plt.text(0.5, 0.9, SPRINT_Coherence_text, transform=ax.transAxes, fontsize=24, verticalalignment='top',
                      horizontalalignment='center', bbox=props_SPRINT_coherence)
 
         plt.show(block=True)
@@ -1033,12 +1042,15 @@ class experiment_data_analysis:
                 # If value is not a dictionary, save it as a .npz file
                 if isinstance(value, np.ndarray):
                     np.savez(os.path.join(current_path + '.npz'), data=value)
-                elif isinstance(value, list):
+                # elif isinstance(value, list):
+                else:
                     with open(os.path.join(current_path + '.json'), 'w') as file:
                         try:
                             json.dump(value, file)
                         except Exception as error:
                             print("An error occurred:", error)
+
+    # def load_all_analysis_data(self):
 
     # Class's constructor
     def __init__(self, exp_type='QRAM', exp_date='20230719', exp_time=None, transit_conditions=[[[2, 1, 2]]]):
@@ -1115,14 +1127,6 @@ class experiment_data_analysis:
 
         self.transit_conditions = transit_conditions
 
-        # # Open folder and load to dictionary
-        # root = Tk()
-        # self.exp_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
-        # self.data = Experiment_data_load.DictionaryBuilder()
-        # self.Exp_dict = self.data.load_files_to_dict(self.exp_data_path)
-        # messagebox.showinfo(title='Success!', message='Experiment data is ready to use.')
-        # root.destroy()
-
         # Open folder and load to dictionary
         self.Exp_dict = self.open_folder_to_dictionary()
 
@@ -1176,7 +1180,7 @@ class experiment_data_analysis:
                 self.get_transit_data(transit_condition, condition_number)
             self.batcher.batch_all(self)
 
-        self.Exp_dict['Analysis_results'] = self.results_to_dictionary()
+        self.Exp_dict['Analysis_results'] = self.results_to_dictionary(True)
         self.save_dict_as_folders_and_variables({'Analysis_results': {
                                                                 'experiment': self.Exp_dict['Analysis_results']
                                                             }}, self.exp_data_path)
@@ -1184,4 +1188,4 @@ class experiment_data_analysis:
         self.batcher.empty_all()
 
 if __name__ == '__main__':
-    self = experiment_data_analysis(transit_conditions=[[[2, 1], [1, 2]], [[2, 1, 2]]])
+    self = experiment_data_analysis(transit_conditions=[[[1, 2]], [[2, 1], [1, 2]], [[2, 1, 2]]])
