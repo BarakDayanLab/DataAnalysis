@@ -121,10 +121,16 @@ class DictionaryBuilder:
         for filename in itr[2]:
             if filename.split('.')[1] == 'npz':
                 try:
+                    # folder[filename.split('.')[0]] = \
+                    #     np.load(os.path.join(folder_path, filename), allow_pickle=True)["arr_0"]
                     folder[filename.split('.')[0]] = \
-                        np.load(os.path.join(folder_path, filename), allow_pickle=True)["arr_0"]
+                        np.load(os.path.join(folder_path, filename), allow_pickle=True)
                 except Exception as err:
                     pass
+                if "arr_0" in folder[filename.split('.')[0]]:
+                    folder[filename.split('.')[0]] = folder[filename.split('.')[0]]["arr_0"]
+                elif "data" in folder[filename.split('.')[0]]:
+                    folder[filename.split('.')[0]] = folder[filename.split('.')[0]]["data"]
             elif filename.split('.')[1] == 'json':
                 data_name = filename.split('.')[0].split('_')[0]
                 for string in filename.split('.')[0].split('_')[1:]:

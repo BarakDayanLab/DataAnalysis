@@ -752,7 +752,17 @@ class experiment_data_analysis:
 
         dictionary = dict()
 
-        # ## General data for background experiment ##
+        ## General data for background experiment ##
+        # folded data:
+        dictionary['folded_tt_N'] = self.folded_tt_N
+        dictionary['folded_tt_BP'] = self.folded_tt_BP
+        dictionary['folded_tt_DP'] = self.folded_tt_DP
+        dictionary['folded_tt_S'] = self.folded_tt_S
+        dictionary['folded_tt_FS'] = self.folded_tt_FS
+
+        dictionary['filter_N'] = self.filter_N
+        dictionary['filter_S'] = self.filter_S
+        dictionary['Pulses_location_in_seq'] = self.Pulses_location_in_seq
         #
         # # transmission data in detection pulses in sequences:
         # dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
@@ -1050,10 +1060,42 @@ class experiment_data_analysis:
                         except Exception as error:
                             print("An error occurred:", error)
 
-    # def load_all_analysis_data(self):
+    def load_all_analysis_data(self):
+        '''
+
+        :return:
+        '''
+        # Open folder and load to dictionary
+        root = Tk()
+        self.analysis_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
+        # Create a list of paths for each sub-experiment analysis results
+        list_of_analysis_data_dirs = []
+        for path, dirs, files in os.walk(self.analysis_data_path):
+            if 'Analysis_results' in path.split("\\")[-1]:
+                list_of_analysis_data_dirs.append(path)
+        data = Experiment_data_load.DictionaryBuilder()
+        # Create a list of dictionaries for each sub-experiment analysis results
+        dictionary = []
+        for indx, path in enumerate(list_of_analysis_data_dirs):
+            dictionary.append(data.load_files_to_dict(path))
+        messagebox.showinfo(title='Success!', message='Analysis results are ready!')
+        root.destroy()
+
+        return dictionary
+
+    def analyze_all_results(self):
+        '''
+
+        :return:
+        '''
+        self.list_of_all_analysis_dictionaries = self.load_all_analysis_data()
+
+    # def calc_average_photons_per_SPRINT_pulse(self, dictianary):
+    #     dictianary['background']['']
+
 
     # Class's constructor
-    def __init__(self, exp_type='QRAM', exp_date='20230719', exp_time=None, transit_conditions=[[[2, 1, 2]]]):
+    def __init__(self, analyze_results=False, transit_conditions=[[[2, 1, 2]]]):
 
         # self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
         # while True:
@@ -1127,65 +1169,74 @@ class experiment_data_analysis:
 
         self.transit_conditions = transit_conditions
 
-        # Open folder and load to dictionary
-        self.Exp_dict = self.open_folder_to_dictionary()
+        if analyze_results:
+            self.analyze_all_results()
+        else:
+            # Open folder and load to dictionary
+            self.Exp_dict = self.open_folder_to_dictionary()
 
-        # Divide data to background and experiment data:
-        exp_key = list(self.Exp_dict.keys())[0]
-        for key in list(self.Exp_dict.keys()):
-            if 'without' in key.lower():
-                self.Background_dict = self.Exp_dict[key]
-            elif 'with' in key.lower():
-                exp_key = key
-        self.Exp_dict = self.Exp_dict[exp_key]
+            # Divide data to background and experiment data:
+            exp_key = list(self.Exp_dict.keys())[0]
+            for key in list(self.Exp_dict.keys()):
+                if 'without' in key.lower():
+                    self.Background_dict = self.Exp_dict[key]
+                elif 'with' in key.lower():
+                    exp_key = key
+            self.Exp_dict = self.Exp_dict[exp_key]
 
-        # background analysis:
-        # check number of cycles in experiment:
-        self.number_of_cycles = len(list(self.Background_dict['output'][list(self.Background_dict['output'].keys())[0]].values())[0])
-        self.init_params_for_experiment(self.Background_dict)
-        # Initialize the batcher
-        self.batcher.set_batch_size(self.number_of_cycles)
-        self.batcher.empty_all()
-        for cycle in tqdm(range(self.number_of_cycles)):
-            self.ingest_time_tags(self.Background_dict, cycle)
-            self.experiment_calculations()
-            for condition_number, transit_condition in enumerate(self.transit_conditions):
-                ### Find transits and extract SPRINT data:  ###
-                self.get_transit_data(transit_condition, condition_number)
-            self.batcher.batch_all(self)
-        self.Background_dict['Analysis_results'] = self.results_to_dictionary()
-        self.save_dict_as_folders_and_variables({'Analysis_results': {
-                                                          'background': self.Background_dict['Analysis_results']
-                                                          }}, self.exp_data_path)
+            # background analysis:
+            # check number of cycles in experiment:
+            self.number_of_cycles = len(list(self.Background_dict['output'][list(self.Background_dict['output'].keys())[0]].values())[0])
+            self.init_params_for_experiment(self.Background_dict)
+            # Initialize the batcher
+            self.batcher.set_batch_size(self.number_of_cycles)
+            self.batcher.empty_all()
+            for cycle in tqdm(range(self.number_of_cycles)):
+                self.ingest_time_tags(self.Background_dict, cycle)
+                self.experiment_calculations()
 
-        # "real" experiment analysis:
-        # check number of cycles in experiment:
-        self.number_of_cycles = len(list(self.Exp_dict['output'][list(self.Exp_dict['output'].keys())[0]].values())[0])
-        self.init_params_for_experiment(self.Exp_dict)
+                # fold time-tags and accumulate to a running average:
+                self.fold_tt_histogram(cycle, self.sequence_len)
+                self.calculate_running_averages(cycle + 1)
 
-        # Initialize the batcher
-        self.batcher.set_batch_size(self.number_of_cycles)
-        self.batcher.empty_all()
+                for condition_number, transit_condition in enumerate(self.transit_conditions):
+                    ### Find transits and extract SPRINT data:  ###
+                    self.get_transit_data(transit_condition, condition_number)
+                self.batcher.batch_all(self)
+            self.Background_dict['Analysis_results'] = self.results_to_dictionary()
+            self.save_dict_as_folders_and_variables({'Analysis_results': {
+                                                              'background': self.Background_dict['Analysis_results']
+                                                              }}, self.exp_data_path)
 
-        for cycle in tqdm(range(self.number_of_cycles)):
-            self.ingest_time_tags(self.Exp_dict, cycle)
-            self.experiment_calculations()
+            # "real" experiment analysis:
+            # check number of cycles in experiment:
+            self.number_of_cycles = len(list(self.Exp_dict['output'][list(self.Exp_dict['output'].keys())[0]].values())[0])
+            self.init_params_for_experiment(self.Exp_dict)
 
-            # fold time-tags and accumulate to a running average:
-            self.fold_tt_histogram(cycle, self.sequence_len)
-            self.calculate_running_averages(cycle + 1)
+            # Initialize the batcher
+            self.batcher.set_batch_size(self.number_of_cycles)
+            self.batcher.empty_all()
 
-            for condition_number, transit_condition in enumerate(self.transit_conditions):
-                ### Find transits and extract SPRINT data:  ###
-                self.get_transit_data(transit_condition, condition_number)
-            self.batcher.batch_all(self)
+            for cycle in tqdm(range(self.number_of_cycles)):
+                self.ingest_time_tags(self.Exp_dict, cycle)
+                self.experiment_calculations()
 
-        self.Exp_dict['Analysis_results'] = self.results_to_dictionary(True)
-        self.save_dict_as_folders_and_variables({'Analysis_results': {
-                                                                'experiment': self.Exp_dict['Analysis_results']
-                                                            }}, self.exp_data_path)
-        self.plot_results()
-        self.batcher.empty_all()
+                # fold time-tags and accumulate to a running average:
+                self.fold_tt_histogram(cycle, self.sequence_len)
+                self.calculate_running_averages(cycle + 1)
+
+                for condition_number, transit_condition in enumerate(self.transit_conditions):
+                    ### Find transits and extract SPRINT data:  ###
+                    self.get_transit_data(transit_condition, condition_number)
+                self.batcher.batch_all(self)
+
+            self.Exp_dict['Analysis_results'] = self.results_to_dictionary(True)
+            self.save_dict_as_folders_and_variables({'Analysis_results': {
+                                                                    'experiment': self.Exp_dict['Analysis_results']
+                                                                }}, self.exp_data_path)
+            self.plot_results()
+            self.batcher.empty_all()
 
 if __name__ == '__main__':
     self = experiment_data_analysis(transit_conditions=[[[1, 2]], [[2, 1], [1, 2]], [[2, 1, 2]]])
+    # self = experiment_data_analysis(analyze_results=True)
