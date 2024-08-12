@@ -763,7 +763,13 @@ class experiment_data_analysis:
         dictionary['filter_N'] = self.filter_N
         dictionary['filter_S'] = self.filter_S
         dictionary['Pulses_location_in_seq'] = self.Pulses_location_in_seq
-        #
+        # if is_exp:
+        #     config_values_key = list(key for key in self.Exp_dict['meta_data'].keys() if 'config' in key)[0]
+        #     dictionary['exp_config_values'] = self.Exp_dict['meta_data'][config_values_key]
+        # else:
+        #     config_values_key = list(key for key in self.Background_dict['meta_data'].keys() if 'config' in key)[0]
+        #     dictionary['exp_config_values'] = self.Background_dict['meta_data'][config_values_key]
+        # #
         # # transmission data in detection pulses in sequences:
         # dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
         #      'num_of_det_transmissions_per_seq']
@@ -1070,32 +1076,140 @@ class experiment_data_analysis:
         self.analysis_data_path = '{}'.format(askdirectory(title='Experiment folder', initialdir=r'U:\Lab_2023\Experiment_results'))
         # Create a list of paths for each sub-experiment analysis results
         list_of_analysis_data_dirs = []
+        list_of_exp_config_values_path = []
         for path, dirs, files in os.walk(self.analysis_data_path):
             if 'Analysis_results' in path.split("\\")[-1]:
                 list_of_analysis_data_dirs.append(path)
+            if 'meta_data' in path.split("\\")[-1]:
+                list_of_exp_config_values_path.append(path)
         data = Experiment_data_load.DictionaryBuilder()
         # Create a list of dictionaries for each sub-experiment analysis results
         dictionary = []
         for indx, path in enumerate(list_of_analysis_data_dirs):
             dictionary.append(data.load_files_to_dict(path))
+        for indx, path in enumerate(list_of_exp_config_values_path):
+            if 'without' in path.lower():
+                exp_type = 'background'
+            elif 'with' in path.lower():
+                exp_type = 'experiment'
+            temp_dict = data.load_files_to_dict(path)
+            config_values_key = list(key for key in temp_dict.keys() if 'config' in key)[0]
+            dictionary[indx//2][exp_type]['Exp_config_values'] = data.load_files_to_dict(path)[config_values_key]
         messagebox.showinfo(title='Success!', message='Analysis results are ready!')
         root.destroy()
 
         return dictionary
 
-    def analyze_all_results(self):
+    def analyze_all_results(self, north_efficiency=0.357, south_efficiency=0.465375):
         '''
 
         :return:
         '''
         self.list_of_all_analysis_dictionaries = self.load_all_analysis_data()
+        self.conditions = [key for key in self.list_of_all_analysis_dictionaries[0]['background'].keys() if '[[' in key]
+        self.experiment_type = self.reflection_or_transmission_exp(self.list_of_all_analysis_dictionaries[0])  # returns 'T' for transmission and 'R' for reflection
+        self.number_of_photons_per_pulse = []
+        self.fidelity, self.qber, self.SNR = [
+            [
+                [] for _ in range(len(self.list_of_all_analysis_dictionaries))
+            ] for _ in range(3)
+        ]
+        for indx, dicionary in enumerate(self.list_of_all_analysis_dictionaries):
+            (self.number_of_photons_per_pulse.
+             append(sum(self.calc_average_photons_per_SPRINT_pulse(dicionary, north_efficiency=0.357,
+                                                                   south_efficiency=0.465375))))
+            for cond in self.conditions:
+                # Calculate fidelity for each condition
+                if self.experiment_type == 'T':
+                    self.fidelity[indx].append(dicionary['experiment'][cond]['transmission'] /
+                                               (dicionary['experiment'][cond]['transmission'] +
+                                                dicionary['experiment'][cond]['reflection']))
+                elif self.experiment_type == 'R':
+                    self.fidelity[indx].append(dicionary['experiment'][cond]['reflection'] /
+                                               (dicionary['experiment'][cond]['transmission'] +
+                                                dicionary['experiment'][cond]['reflection']))
+                # QBER for each condition
+                self.qber[indx].append(dicionary['experiment'][cond]['Dark'] /
+                                       (dicionary['experiment'][cond]['Dark'] +
+                                        dicionary['experiment'][cond]['Bright']))
+                self.SNR[indx].append(dicionary['experiment'][cond]['SNR'])
+        self.plot_all_QBER_results()
 
-    # def calc_average_photons_per_SPRINT_pulse(self, dictianary):
-    #     dictianary['background']['']
+    def calc_average_photons_per_SPRINT_pulse(self, dictionary, coupling_tranmission=0.49, north_efficiency=0.357,
+                                              south_efficiency=0.465375):
+        '''
 
+        :param dictionary:
+        :param north_efficiency:
+        :param south_efficiency:
+        :param coupling_tranmission:
+        :return:
+        '''
+        clicks_in_north_per_seq = (dictionary['background']['folded_tt_N'] + dictionary['background']['folded_tt_BP']
+                                   + dictionary['background']['folded_tt_DP'])
+        clicks_in_south_per_seq = dictionary['background']['folded_tt_S'] + dictionary['background']['folded_tt_FS']
+        plt.plot(clicks_in_north_per_seq)
+        total_clicks_in_SPRINT_pulse_north = []
+        total_clicks_in_SPRINT_pulse_south = []
+        total_clicks_in_SPRINT_pulse_transmission_considering_efficiency = []
+        total_clicks_in_SPRINT_pulse_reflection_considering_efficiency = []
+        pulse_duration = []
+        for lst in dictionary['background']['Pulses_location_in_seq']:
+            if lst[-1] == 'n':
+                pulse_duration.append(lst[1]-lst[0])
+                total_clicks_in_SPRINT_pulse_north.append(sum(clicks_in_north_per_seq[lst[0]:lst[1]]))
+                (total_clicks_in_SPRINT_pulse_transmission_considering_efficiency.
+                 append(sum(clicks_in_north_per_seq[lst[0]:lst[1]])/(coupling_tranmission*north_efficiency)))
+                total_clicks_in_SPRINT_pulse_south.append(sum(clicks_in_south_per_seq[lst[0]:lst[1]]))
+                (total_clicks_in_SPRINT_pulse_reflection_considering_efficiency.
+                 append(sum(clicks_in_south_per_seq[lst[0]:lst[1]])/south_efficiency))
+            elif lst[-1] == 's':
+                pulse_duration.append(lst[1]-lst[0])
+                total_clicks_in_SPRINT_pulse_north.append(sum(clicks_in_north_per_seq[lst[0]:lst[1]]))
+                (total_clicks_in_SPRINT_pulse_reflection_considering_efficiency.
+                 append(sum(clicks_in_south_per_seq[lst[0]:lst[1]])/north_efficiency))
+                total_clicks_in_SPRINT_pulse_south.append(sum(clicks_in_south_per_seq[lst[0]:lst[1]]))
+                (total_clicks_in_SPRINT_pulse_transmission_considering_efficiency.
+                 append(sum(clicks_in_north_per_seq[lst[0]:lst[1]])/(coupling_tranmission*south_efficiency)))
+
+        number_of_seq_in_exp = (math.ceil((dictionary['background']['Exp_config_values']['M_window']-1e6) /
+                                          (len(dictionary['background']['filter_N']))))
+        avg_photons_per_pulse = (np.array(total_clicks_in_SPRINT_pulse_transmission_considering_efficiency) /
+                                 number_of_seq_in_exp)
+
+        return avg_photons_per_pulse
+
+    def reflection_or_transmission_exp(self, dictionary):
+        '''
+        Go through the pulse sequence and check if the direction of the last detection pulse (the preparation pulse) is
+        the same as the direction of the SPRINT pulse
+        :param dictionary:
+        :return:
+        '''
+
+        self.list_of_pulses = [s[-1] for s in dictionary['background']['Pulses_location_in_seq']]
+        for i in range(1, len(self.list_of_pulses)):
+            if (self.list_of_pulses[i-1] == 'N' and self.list_of_pulses[i] == 'n') or (self.list_of_pulses[i-1] == 'S' and self.list_of_pulses[i] == 's'):
+                return 'T'
+            if (self.list_of_pulses[i-1] == 'S' and self.list_of_pulses[i] == 'n') or (self.list_of_pulses[i-1] == 'N' and self.list_of_pulses[i] == 's'):
+                return 'R'
+
+    def plot_all_QBER_results(self):
+        '''
+
+        :return:
+        '''
+        self.f = plt.figure('QBER')
+        for indx, cond in enumerate(self.conditions):
+            qber_per_cond = [qber[indx] for qber in self.qber]
+            SNR_text = ['%.1f' % snr[indx] for snr in self.SNR]
+            plt.plot(self.number_of_photons_per_pulse, qber_per_cond, label=('condition: ' + cond))
+            # plt.text(np.array(self.number_of_photons_per_pulse)*1.03, np.array(qber_per_cond)*1.03, SNR_text, fontsize=10)
+        plt.legend(loc='upper right')
+        plt.show()
 
     # Class's constructor
-    def __init__(self, analyze_results=False, transit_conditions=[[[2, 1, 2]]]):
+    def __init__(self, analyze_results=False, transit_conditions=None):
 
         # self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
         # while True:
@@ -1143,6 +1257,8 @@ class experiment_data_analysis:
         #           sum(self.folded_tt_S_directional[
         #               int(self.Pulses_location_in_seq[0][0]):int(self.Pulses_location_in_seq[0][1])]))
 
+        if transit_conditions is None:
+            transit_conditions = [[[2, 1, 2]]]
         self.paths_map = {
             "name": __name__,
             "file": __file__,
@@ -1170,7 +1286,7 @@ class experiment_data_analysis:
         self.transit_conditions = transit_conditions
 
         if analyze_results:
-            self.analyze_all_results()
+            self.analyze_all_results(north_efficiency=0.357, south_efficiency=0.465375)
         else:
             # Open folder and load to dictionary
             self.Exp_dict = self.open_folder_to_dictionary()
@@ -1238,5 +1354,5 @@ class experiment_data_analysis:
             self.batcher.empty_all()
 
 if __name__ == '__main__':
-    self = experiment_data_analysis(transit_conditions=[[[1, 2]], [[2, 1], [1, 2]], [[2, 1, 2]]])
-    # self = experiment_data_analysis(analyze_results=True)
+    # self = experiment_data_analysis(transit_conditions=[[[1, 2]], [[2, 1], [1, 2]], [[2, 1, 2]]])
+    self = experiment_data_analysis(analyze_results=True)
