@@ -16,7 +16,9 @@ from Utilities.BDLogger import BDLogger
 from Utilities.BDBatch import BDBatch
 from Utilities.BDResults import BDResults
 from tqdm import tqdm
-
+import matplotlib
+from matplotlib.container import ErrorbarContainer
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 
 class experiment_data_analysis:
     def popupbox_inquiry(self, message=''):
@@ -228,7 +230,7 @@ class experiment_data_analysis:
             ] for _ in range(4)
         ]
 
-    def ingest_time_tags(self, dict, cycle):
+    def ingest_time_tags(self, dict, cycle, delay):
         """
         Takes all the raw results we got from the streams and does some processing on them - preparing "measures"
         """
@@ -236,13 +238,13 @@ class experiment_data_analysis:
         # ------------------------------------------
         # Unify detectors and windows within detectors and create vector of tt's for each direction (bright port, dark port, north, south and from FS) and sort them
         # ------------------------------------------
-        self.tt_BP_measure = dict['output']['Bright(1,2)']['Bright_timetags'][cycle]
-        self.tt_DP_measure = dict['output']['Dark(3,4)']['Dark_timetags'][cycle]
-        self.tt_N_measure = dict['output']['North(8)']['North_timetags'][cycle]
-        self.tt_S_measure = dict['output']['South(5)']['South_timetags'][cycle]
-        self.tt_FS_measure = dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]
+        self.tt_BP_measure = np.array(dict['output']['Bright(1,2)']['Bright_timetags'][cycle]) + delay
+        self.tt_DP_measure = np.array(dict['output']['Dark(3,4)']['Dark_timetags'][cycle]) + delay
+        self.tt_N_measure = np.array(dict['output']['North(8)']['North_timetags'][cycle]) + delay
+        self.tt_S_measure = np.array(dict['output']['South(5)']['South_timetags'][cycle]) + delay
+        self.tt_FS_measure = np.array(dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]) + delay
 
-    def fold_tt_histogram(self, cycle, exp_sequence_len):
+    def fold_tt_histogram(self, exp_sequence_len):
 
         self.folded_tt_S = np.zeros(exp_sequence_len, dtype=int)
         self.folded_tt_N = np.zeros(exp_sequence_len, dtype=int)
@@ -254,26 +256,26 @@ class experiment_data_analysis:
         self.folded_tt_BP_timebins = np.zeros(exp_sequence_len, dtype=int)
         self.folded_tt_DP_timebins = np.zeros(exp_sequence_len, dtype=int)
 
-        for x in self.Exp_dict['output']['South(5)']['South_timetags'][cycle]:
+        # for x in self.Exp_dict['output']['South(5)']['South_timetags'][cycle]:
+        for x in self.tt_S_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_S[x % exp_sequence_len] += 1
-            # self.folded_tt_S[x % exp_sequence_len] += 1
-        for x in self.Exp_dict['output']['North(8)']['North_timetags'][cycle]:
+        # for x in self.Exp_dict['output']['North(8)']['North_timetags'][cycle]:
+        for x in self.tt_N_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_N[x % exp_sequence_len] += 1
-            # self.folded_tt_N[x % exp_sequence_len] += 1
-        for x in self.Exp_dict['output']['Bright(1,2)']['Bright_timetags'][cycle]:
+        # for x in self.Exp_dict['output']['Bright(1,2)']['Bright_timetags'][cycle]:
+        for x in self.tt_BP_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_BP[x % exp_sequence_len] += 1
-            # self.folded_tt_BP[x % exp_sequence_len] += 1
-        for x in self.Exp_dict['output']['Dark(3,4)']['Dark_timetags'][cycle]:
+        # for x in self.Exp_dict['output']['Dark(3,4)']['Dark_timetags'][cycle]:
+        for x in self.tt_DP_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_DP[x % exp_sequence_len] += 1
-            # self.folded_tt_DP[x % exp_sequence_len] += 1
-        for x in self.Exp_dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]:
+        # for x in self.Exp_dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]:
+        for x in self.tt_FS_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_FS[x % exp_sequence_len] += 1
-            # self.folded_tt_FS[x % exp_sequence_len] += 1
 
         self.folded_tt_S_directional = (np.array(self.folded_tt_S) + np.array(self.folded_tt_FS))
         # self.folded_tt_N_directional = self.folded_tt_N
@@ -426,7 +428,8 @@ class experiment_data_analysis:
         ]
 
         # N direction:
-        self.N_tt = np.array(self.tt_N_measure)
+        # self.N_tt = np.array(self.tt_N_measure)
+        self.N_tt = self.tt_N_measure
         tt_inseq_ = self.N_tt % self.sequence_len
         seq_num_ = self.N_tt // self.sequence_len
         for (element, tt_inseq, seq_num) in zip(self.N_tt, tt_inseq_, seq_num_):
@@ -464,7 +467,8 @@ class experiment_data_analysis:
                     self.num_of_det_transmissions_per_seq_N[seq_num] += self.filter_N[tt_inseq]
 
         # Bright port direction:
-        self.BP_tt = np.array(self.tt_BP_measure)
+        # self.BP_tt = np.array(self.tt_BP_measure)
+        self.BP_tt = self.tt_BP_measure
         tt_inseq_ = self.BP_tt % self.sequence_len
         seq_num_ = self.BP_tt // self.sequence_len
         for (element, tt_inseq, seq_num) in zip(self.BP_tt, tt_inseq_, seq_num_):
@@ -503,7 +507,8 @@ class experiment_data_analysis:
                     self.num_of_det_transmissions_per_seq_N[seq_num] += self.filter_N[tt_inseq]
 
         # Dark port direction:
-        self.DP_tt = np.array(self.tt_DP_measure)
+        # self.DP_tt = np.array(self.tt_DP_measure)
+        self.DP_tt = self.tt_DP_measure
         tt_inseq_ = self.DP_tt % self.sequence_len
         seq_num_ = self.DP_tt // self.sequence_len
         for (element, tt_inseq, seq_num) in zip(self.DP_tt, tt_inseq_, seq_num_):
@@ -541,7 +546,8 @@ class experiment_data_analysis:
                     self.num_of_det_reflections_per_seq_S[seq_num] += self.filter_S[tt_inseq]
                     self.num_of_det_transmissions_per_seq_N[seq_num] += self.filter_N[tt_inseq]
 
-        self.S_tt = np.array(self.tt_S_measure + self.tt_FS_measure)
+        # self.S_tt = np.array(self.tt_S_measure + self.tt_FS_measure)
+        self.S_tt = np.concatenate((self.tt_S_measure, self.tt_FS_measure))
         tt_inseq_ = self.S_tt % self.sequence_len
         seq_num_ = self.S_tt // self.sequence_len
         for (element, tt_inseq, seq_num) in zip(self.S_tt, tt_inseq_, seq_num_):
@@ -648,7 +654,8 @@ class experiment_data_analysis:
                     all_transits_seq_indx.pop(i)
         return all_transits_seq_indx
 
-    def analyze_SPRINT_data_points(self, all_transits_seq_indx, SPRINT_pulse_number=[1], background=False):
+    def analyze_SPRINT_data_points(self, all_transits_seq_indx, SPRINT_pulse_number=[1],
+                                   number_of_reflection_in_preparation_pulse=1, background=False):
         '''
         For a given vector of sequence indexes, find the relevant data points for SPRINT pulse and analyze results.
         :param all_transits_seq_indx: The vector of indexes of sequences that need to be analyzed.
@@ -670,11 +677,11 @@ class experiment_data_analysis:
                     # detection pulse:
                     potential_data = False if not background else True
                     if self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1][2] == 'N' and \
-                       len(self.num_of_det_reflections_per_seq_N_[seq_indx][-1]) >= 1:
+                       len(self.num_of_det_reflections_per_seq_N_[seq_indx][-1]) >= number_of_reflection_in_preparation_pulse:
                         potential_data = True
                         # self.potential_data += 1
                     elif self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1][2] == 'S' and \
-                            len(self.num_of_det_reflections_per_seq_S_[seq_indx][-1]) >= 1:
+                            len(self.num_of_det_reflections_per_seq_S_[seq_indx][-1]) >= number_of_reflection_in_preparation_pulse:
                         potential_data = True
                         # self.potential_data += 1
                     # Getting SPRINT data if the SPRINT pulse has one photon in the reflection or transmission
@@ -707,7 +714,7 @@ class experiment_data_analysis:
                                 DP_counts_SPRINT_data.append(len(self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
         return seq_with_data_points, reflection_SPRINT_data, transmission_SPRINT_data, BP_counts_SPRINT_data, DP_counts_SPRINT_data
 
-    def get_transit_data(self, transit_condition, cond_num):
+    def get_transit_data(self, transit_condition, cond_num, reflections_in_preparation_cond):
         '''
         Use the data loaded from the experiment to find atomic transits under different conditions and some data to
         compare the conditions, such as, number of transits, transit length distribution and more...
@@ -723,6 +730,7 @@ class experiment_data_analysis:
         (self.seq_with_data_points[cond_num], self.reflection_SPRINT_data[cond_num], self.transmission_SPRINT_data[cond_num],
          self.BP_counts_SPRINT_data[cond_num], self.DP_counts_SPRINT_data[cond_num]) = \
             self.analyze_SPRINT_data_points(self.all_transits_seq_indx_per_cond[cond_num], SPRINT_pulse_number=[1, 2],
+                                            number_of_reflection_in_preparation_pulse=reflections_in_preparation_cond,
                                             background=False)  # Enter the index of the SPRINT pulse for which the data should be analyzed
         # print(self.potential_data)
         # Analyze SPRINT data when no transit occur:
@@ -733,6 +741,7 @@ class experiment_data_analysis:
         (_, self.reflection_SPRINT_data_without_transits[cond_num], self.transmission_SPRINT_data_without_transits[cond_num],
          self.BP_counts_SPRINT_data_without_transits[cond_num], self.DP_counts_SPRINT_data_without_transits[cond_num]) = \
             self.analyze_SPRINT_data_points(self.all_seq_without_transits, SPRINT_pulse_number=[1, 2],
+                                            number_of_reflection_in_preparation_pulse=reflections_in_preparation_cond,
                                             background=True)  # Enter the index of the SPRINT pulse for which the data should be analyzed
 
         # self.number_of_transits_live = len(self.all_transits_seq_indx_per_cond)
@@ -1109,10 +1118,10 @@ class experiment_data_analysis:
         self.conditions = [key for key in self.list_of_all_analysis_dictionaries[0]['background'].keys() if '[[' in key]
         self.experiment_type = self.reflection_or_transmission_exp(self.list_of_all_analysis_dictionaries[0])  # returns 'T' for transmission and 'R' for reflection
         self.number_of_photons_per_pulse = []
-        self.fidelity, self.qber, self.SNR = [
+        self.fidelity, self.qber, self.qber_err, self.SNR, self.qber_bg, self.qber_err_bg = [
             [
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
-            ] for _ in range(3)
+            ] for _ in range(6)
         ]
         for indx, dicionary in enumerate(self.list_of_all_analysis_dictionaries):
             (self.number_of_photons_per_pulse.
@@ -1128,11 +1137,79 @@ class experiment_data_analysis:
                     self.fidelity[indx].append(dicionary['experiment'][cond]['reflection'] /
                                                (dicionary['experiment'][cond]['transmission'] +
                                                 dicionary['experiment'][cond]['reflection']))
-                # QBER for each condition
-                self.qber[indx].append(dicionary['experiment'][cond]['Dark'] /
-                                       (dicionary['experiment'][cond]['Dark'] +
-                                        dicionary['experiment'][cond]['Bright']))
+
+                # QBER for each condition:
+
+                ## get all indices where there are no more then 1 count in "bright" + "dark" port
+                bright_counts_per_data_point = np.array(sum(dicionary['experiment'][cond]
+                                                            ['BP_counts_per_data_point_per_cycle'], []))
+                dark_counts_per_data_point = np.array(sum(dicionary['experiment'][cond]
+                                                          ['DP_counts_per_data_point_per_cycle'], []))
+
+                # rel_indices = np.where((bright_counts_per_data_point + dark_counts_per_data_point) < 2)
+                rel_indices = np.where((bright_counts_per_data_point + dark_counts_per_data_point) > 0)
+                bright_counts_per_data_point[rel_indices] = (bright_counts_per_data_point[rel_indices] /
+                                                             (bright_counts_per_data_point[rel_indices] +
+                                                              dark_counts_per_data_point[rel_indices]))
+                dark_counts_per_data_point[rel_indices] = (dark_counts_per_data_point[rel_indices] /
+                                                           (bright_counts_per_data_point[rel_indices] +
+                                                            dark_counts_per_data_point[rel_indices]))
+
+                ## calculate qber
+                Bright_counts = sum(bright_counts_per_data_point[rel_indices])
+                Dark_counts = sum(dark_counts_per_data_point[rel_indices])
+                self.qber[indx].append(Dark_counts / (Dark_counts + Bright_counts))
+                qber_std = np.sqrt((Dark_counts / (Dark_counts + Bright_counts) ** 2 *
+                                    np.sqrt(Bright_counts)) ** 2 + (Bright_counts / (Dark_counts + Bright_counts) ** 2 *
+                                                                    np.sqrt(Dark_counts)) ** 2)
+                self.qber_err[indx].append(qber_std)
                 self.SNR[indx].append(dicionary['experiment'][cond]['SNR'])
+
+                # QBER without atoms:
+
+                ## get all indices where there are no more then 1 count in "bright" + "dark" port
+                bright_counts_per_data_point_bg = np.array(sum(dicionary['background'][cond]
+                                                               ['BP_counts_without_transits_per_data_point_per_cycle'],
+                                                               []))
+                dark_counts_per_data_point_bg = np.array(sum(dicionary['background'][cond]
+                                                             ['DP_counts_without_transits_per_data_point_per_cycle'],
+                                                             []))
+
+                # rel_indices = np.where((bright_counts_per_data_point + dark_counts_per_data_point) < 2)
+                rel_indices_bg = np.where((bright_counts_per_data_point_bg + dark_counts_per_data_point_bg) > 0)
+                bright_counts_per_data_point_bg[rel_indices_bg] = (bright_counts_per_data_point_bg[rel_indices_bg] /
+                                                                   (bright_counts_per_data_point_bg[rel_indices_bg] +
+                                                                    dark_counts_per_data_point_bg[rel_indices_bg]))
+                dark_counts_per_data_point_bg[rel_indices_bg] = (dark_counts_per_data_point_bg[rel_indices_bg] /
+                                                                 (bright_counts_per_data_point_bg[rel_indices_bg] +
+                                                                  dark_counts_per_data_point_bg[rel_indices_bg]))
+
+                ## calculate qber
+                Bright_counts_bg = sum(bright_counts_per_data_point_bg[rel_indices_bg])
+                Dark_counts_bg = sum(dark_counts_per_data_point_bg[rel_indices_bg])
+                self.qber_bg[indx].append(Dark_counts_bg / (Dark_counts_bg + Bright_counts_bg))
+                qber_std = np.sqrt((Dark_counts_bg / (Dark_counts_bg + Bright_counts_bg) ** 2 *
+                                    np.sqrt(Bright_counts_bg)) ** 2 +
+                                   (Bright_counts_bg / (Dark_counts_bg + Bright_counts_bg) ** 2 *
+                                    np.sqrt(Dark_counts_bg)) ** 2)
+                self.qber_err_bg[indx].append(qber_std)
+
+                # ## Calculate qber
+                # self.qber[indx].append(dicionary['experiment'][cond]['Dark'] /
+                #                        (dicionary['experiment'][cond]['Dark'] +
+                #                         dicionary['experiment'][cond]['Bright']))
+                # qber_std = np.sqrt((dicionary['experiment'][cond]['Dark'] / (dicionary['experiment'][cond]['Dark'] +
+                #                                                              dicionary['experiment'][cond][
+                #                                                                  'Bright']) ** 2 *
+                #                     np.sqrt(dicionary['experiment'][cond]['Bright']))**2 +
+                #                    (dicionary['experiment'][cond]['Bright'] / (dicionary['experiment'][cond]['Dark'] +
+                #                                                                dicionary['experiment'][cond][
+                #                                                                  'Bright']) ** 2 *
+                #                     np.sqrt(dicionary['experiment'][cond]['Dark'])) ** 2)
+                # self.qber_err[indx].append(qber_std)
+                # self.SNR[indx].append(dicionary['experiment'][cond]['SNR'])
+
+        self.plot_all_QBER_results_bg()
         self.plot_all_QBER_results()
 
     def calc_average_photons_per_SPRINT_pulse(self, dictionary, coupling_tranmission=0.49, north_efficiency=0.357,
@@ -1148,7 +1225,8 @@ class experiment_data_analysis:
         clicks_in_north_per_seq = (dictionary['background']['folded_tt_N'] + dictionary['background']['folded_tt_BP']
                                    + dictionary['background']['folded_tt_DP'])
         clicks_in_south_per_seq = dictionary['background']['folded_tt_S'] + dictionary['background']['folded_tt_FS']
-        plt.plot(clicks_in_north_per_seq)
+        # plt.plot(clicks_in_north_per_seq)
+        # plt.plot(clicks_in_south_per_seq)
         total_clicks_in_SPRINT_pulse_north = []
         total_clicks_in_SPRINT_pulse_south = []
         total_clicks_in_SPRINT_pulse_transmission_considering_efficiency = []
@@ -1167,10 +1245,10 @@ class experiment_data_analysis:
                 pulse_duration.append(lst[1]-lst[0])
                 total_clicks_in_SPRINT_pulse_north.append(sum(clicks_in_north_per_seq[lst[0]:lst[1]]))
                 (total_clicks_in_SPRINT_pulse_reflection_considering_efficiency.
-                 append(sum(clicks_in_south_per_seq[lst[0]:lst[1]])/north_efficiency))
+                 append(sum(clicks_in_north_per_seq[lst[0]:lst[1]])/north_efficiency))
                 total_clicks_in_SPRINT_pulse_south.append(sum(clicks_in_south_per_seq[lst[0]:lst[1]]))
                 (total_clicks_in_SPRINT_pulse_transmission_considering_efficiency.
-                 append(sum(clicks_in_north_per_seq[lst[0]:lst[1]])/(coupling_tranmission*south_efficiency)))
+                 append(sum(clicks_in_south_per_seq[lst[0]:lst[1]])/(coupling_tranmission*south_efficiency)))
 
         number_of_seq_in_exp = (math.ceil((dictionary['background']['Exp_config_values']['M_window']-1e6) /
                                           (len(dictionary['background']['filter_N']))))
@@ -1194,19 +1272,76 @@ class experiment_data_analysis:
             if (self.list_of_pulses[i-1] == 'S' and self.list_of_pulses[i] == 'n') or (self.list_of_pulses[i-1] == 'N' and self.list_of_pulses[i] == 's'):
                 return 'R'
 
+    def plot_all_QBER_results_bg(self):
+        '''
+
+        :return:
+        '''
+        self.plot_lines_bg = []
+        self.f_bg, self.ax_bg = plt.subplots(1, 1, num='QBER without atoms')
+        my_handler_map = {ErrorbarContainer: CustomErrorbarHandler(numpoints=1)}
+        for indx, cond in enumerate(self.conditions):
+            qber_per_cond = [qber_bg[indx] for qber_bg in self.qber_bg]
+            qber_err_per_cond = [qber_err_bg[indx] for qber_err_bg in self.qber_err_bg]
+            SNR_text = '%.1f' % np.mean([snr[indx] for snr in self.SNR])
+            # plot_line, = plt.plot(self.number_of_photons_per_pulse, qber_per_cond, label=('condition: ' + cond))
+            plot_line = self.ax_bg.errorbar(self.number_of_photons_per_pulse, qber_per_cond, yerr=qber_err_per_cond, fmt='-o',
+                                      capsize=3, label=('condition: ' + cond + ', SNR = ' + SNR_text))
+            self.plot_lines_bg.append(plot_line)
+            # plt.text(np.array(self.number_of_photons_per_pulse)*1.03, np.array(qber_per_cond)*1.03, SNR_text, fontsize=10)
+        self.lgnd = self.ax_bg.legend(loc='upper right', handler_map=my_handler_map)
+        self.ax_bg.set_ylabel('QBER', fontsize=24)
+        self.ax_bg.set_xlabel('$\mu $[#photons from Alice]', fontsize=24)
+        self.ax_bg.grid(visible=True, which='both', axis='both')
+        # self.ax.grid(visible=True, which='major', axis='both')
+        # self.ax.minorticks_on()
+        self.ax_bg.xaxis.set_minor_locator(AutoMinorLocator(2))
+
+        # self.f.canvas.mpl_connect('pick_event', self.onpick)
+        # plt.show()
+
     def plot_all_QBER_results(self):
         '''
 
         :return:
         '''
-        self.f = plt.figure('QBER')
+        self.plot_lines = []
+        self.f, self.ax = plt.subplots(1, 1, num='QBER')
+        my_handler_map = {ErrorbarContainer: CustomErrorbarHandler(numpoints=1)}
         for indx, cond in enumerate(self.conditions):
             qber_per_cond = [qber[indx] for qber in self.qber]
-            SNR_text = ['%.1f' % snr[indx] for snr in self.SNR]
-            plt.plot(self.number_of_photons_per_pulse, qber_per_cond, label=('condition: ' + cond))
+            qber_err_per_cond = [qber_err[indx] for qber_err in self.qber_err]
+            SNR_text = '%.1f' % np.mean([snr[indx] for snr in self.SNR])
+            # plot_line, = plt.plot(self.number_of_photons_per_pulse, qber_per_cond, label=('condition: ' + cond))
+            plot_line = self.ax.errorbar(self.number_of_photons_per_pulse, qber_per_cond, yerr=qber_err_per_cond, fmt='-o',
+                                      capsize=3, label=('condition: ' + cond + ', SNR = ' + SNR_text))
+            self.plot_lines.append(plot_line)
             # plt.text(np.array(self.number_of_photons_per_pulse)*1.03, np.array(qber_per_cond)*1.03, SNR_text, fontsize=10)
-        plt.legend(loc='upper right')
-        plt.show()
+        self.lgnd = self.ax.legend(loc='upper right', handler_map=my_handler_map)
+        self.ax.set_ylabel('QBER', fontsize=24)
+        self.ax.set_xlabel('$\mu $[#photons from Alice]', fontsize=24)
+        self.ax.grid(visible=True, which='both', axis='both')
+        # self.ax.grid(visible=True, which='major', axis='both')
+        # self.ax.minorticks_on()
+        self.ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+
+
+        self.lined = dict()
+        for legend_line, plot_line in zip(self.lgnd.legend_handles, self.plot_lines):
+            legend_line.set_picker(5)
+            self.lined[legend_line] = plot_line
+
+        # self.f.canvas.mpl_connect('pick_event', self.onpick)
+        # plt.show()
+
+    def onpick(self, event):
+        legend_line = event.artist
+        plot = self.lined[legend_line]
+        for p in plot.get_children():
+            vis = not p.get_visible()
+            p.set_visible(vis)
+        legend_line.set_alpha(1.0 if vis else 0.2)
+        self.f.canvas.draw()
 
     # Class's constructor
     def __init__(self, analyze_results=False, transit_conditions=None):
@@ -1308,16 +1443,16 @@ class experiment_data_analysis:
             self.batcher.set_batch_size(self.number_of_cycles)
             self.batcher.empty_all()
             for cycle in tqdm(range(self.number_of_cycles)):
-                self.ingest_time_tags(self.Background_dict, cycle)
+                self.ingest_time_tags(self.Background_dict, cycle, delay=0)
                 self.experiment_calculations()
 
                 # fold time-tags and accumulate to a running average:
-                self.fold_tt_histogram(cycle, self.sequence_len)
+                self.fold_tt_histogram(self.sequence_len)
                 self.calculate_running_averages(cycle + 1)
 
                 for condition_number, transit_condition in enumerate(self.transit_conditions):
                     ### Find transits and extract SPRINT data:  ###
-                    self.get_transit_data(transit_condition, condition_number)
+                    self.get_transit_data(transit_condition[0], condition_number, transit_condition[1])
                 self.batcher.batch_all(self)
             self.Background_dict['Analysis_results'] = self.results_to_dictionary()
             self.save_dict_as_folders_and_variables({'Analysis_results': {
@@ -1334,16 +1469,16 @@ class experiment_data_analysis:
             self.batcher.empty_all()
 
             for cycle in tqdm(range(self.number_of_cycles)):
-                self.ingest_time_tags(self.Exp_dict, cycle)
+                self.ingest_time_tags(self.Exp_dict, cycle, delay=0)
                 self.experiment_calculations()
 
                 # fold time-tags and accumulate to a running average:
-                self.fold_tt_histogram(cycle, self.sequence_len)
+                self.fold_tt_histogram(self.sequence_len)
                 self.calculate_running_averages(cycle + 1)
 
                 for condition_number, transit_condition in enumerate(self.transit_conditions):
                     ### Find transits and extract SPRINT data:  ###
-                    self.get_transit_data(transit_condition, condition_number)
+                    self.get_transit_data(transit_condition[0], condition_number, transit_condition[1])
                 self.batcher.batch_all(self)
 
             self.Exp_dict['Analysis_results'] = self.results_to_dictionary(True)
@@ -1353,6 +1488,27 @@ class experiment_data_analysis:
             self.plot_results()
             self.batcher.empty_all()
 
+
+class CustomErrorbarHandler(matplotlib.legend_handler.HandlerErrorbar):
+    """
+    Sub-class the standard error-bar handler
+    """
+
+    def create_artists(self, *args, **kwargs):
+        #  call the parent class function
+        a_list = matplotlib.legend_handler.HandlerErrorbar.create_artists(self, *args, **kwargs)
+        # re-order the artist list, only the first artist is added to the
+        # legend artist list, this is the one that corresponds to the markers
+        a_list = a_list[-1:] + a_list[:-1]
+        return a_list
+
 if __name__ == '__main__':
-    # self = experiment_data_analysis(transit_conditions=[[[1, 2]], [[2, 1], [1, 2]], [[2, 1, 2]]])
+    # tansit_conditions is a list of lists. Each list comprises a list of conditions for transits and the number
+    # of photons reflected in the "preparation" pulse to take for SPRINT data analysis.
+    # self = experiment_data_analysis(transit_conditions=[[[[1, 2]], 1], [[[2, 1], [1, 2]], 1], [[[2, 1, 2]], 1]])
+    # self = experiment_data_analysis(transit_conditions=[[[[2, 1, 2]], 1]])
+    # self = experiment_data_analysis(transit_conditions=[[[[1, 1, 2]], 0], [[[1, 1, 2]], 1], [[[1, 2, 1]], 0],
+    #                                                     [[[1, 2, 1]], 1]])
     self = experiment_data_analysis(analyze_results=True)
+    self.f.canvas.mpl_connect('pick_event', self.onpick)
+    plt.show()
