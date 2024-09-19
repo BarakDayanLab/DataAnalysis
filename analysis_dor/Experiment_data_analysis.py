@@ -787,7 +787,7 @@ class experiment_data_analysis:
         # dictionary['transmission_data_in_detection_pulses_per_seq_per_cycle_S'] = self.batcher[
         #      'num_of_det_transmissions_per_seq_S']
         #
-        # # reflection data in detection pulses in sequences:
+        # reflection data in detection pulses in sequences:
         # dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle'] = self.batcher[
         #      'num_of_det_reflections_per_seq']
         # dictionary['reflection_data_in_detection_pulses_per_seq_per_cycle_N'] = self.batcher[
@@ -827,13 +827,15 @@ class experiment_data_analysis:
             dictionary[str(condition)]['number_of_transits'] = 0
             dictionary[str(condition)]['number_of_sequences_with_transits'] = 0
             dictionary[str(condition)]['indices_of_all_sequences_with_transits_per_cycle'] = []
-            for lst in self.batcher['all_transits_seq_indx_per_cond']:
+            dictionary[str(condition)]['all_transits_length_per_cond'] = []
+            for i, lst in enumerate(self.batcher['all_transits_seq_indx_per_cond']):
                 for vec in lst[indx]:
                     # Get number of transits and number of sequences with transits
                     dictionary[str(condition)]['number_of_transits'] += 1
                     dictionary[str(condition)]['number_of_sequences_with_transits'] += len(vec)
                 # Save index of sequences with transits per cycle:
                 dictionary[str(condition)]['indices_of_all_sequences_with_transits_per_cycle'].append(lst[indx])
+                dictionary[str(condition)]['all_transits_length_per_cond'].append(self.batcher['all_transits_length_per_cond'][i][indx])
             dictionary[str(condition)]['number_of_sequences_with_transits'] -= dictionary[str(condition)]['number_of_transits']
             if is_exp:
                 if self.Background_dict['Analysis_results'][str(condition)]['number_of_transits'] == 0:
@@ -1506,9 +1508,10 @@ if __name__ == '__main__':
     # tansit_conditions is a list of lists. Each list comprises a list of conditions for transits and the number
     # of photons reflected in the "preparation" pulse to take for SPRINT data analysis.
     # self = experiment_data_analysis(transit_conditions=[[[[1, 2]], 1], [[[2, 1], [1, 2]], 1], [[[2, 1, 2]], 1]])
-    # self = experiment_data_analysis(transit_conditions=[[[[2, 1, 2]], 1]])
+    self = experiment_data_analysis(transit_conditions=[[[[2, 1, 2]], 1]])
     # self = experiment_data_analysis(transit_conditions=[[[[1, 1, 2]], 0], [[[1, 1, 2]], 1], [[[1, 2, 1]], 0],
     #                                                     [[[1, 2, 1]], 1]])
-    self = experiment_data_analysis(analyze_results=True)
-    self.f.canvas.mpl_connect('pick_event', self.onpick)
-    plt.show()
+
+    # self = experiment_data_analysis(analyze_results=True)
+    # self.f.canvas.mpl_connect('pick_event', self.onpick)
+    # plt.show()
