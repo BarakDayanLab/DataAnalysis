@@ -1143,10 +1143,27 @@ class experiment_data_analysis:
                 # QBER for each condition:
 
                 ## get all indices where there are no more then 1 count in "bright" + "dark" port
-                bright_counts_per_data_point = np.array(sum(dicionary['experiment'][cond]
-                                                            ['BP_counts_per_data_point_per_cycle'], []))
-                dark_counts_per_data_point = np.array(sum(dicionary['experiment'][cond]
-                                                          ['DP_counts_per_data_point_per_cycle'], []))
+                b = []
+                d = []
+                for cyc_index, lst_of_transits in enumerate(dicionary['experiment'][cond]['all_transits_length_per_cond']):
+                    for transit_indx, transit_len in enumerate(lst_of_transits):
+                        if transit_len <= 1000:
+                            continue
+                        for i, seq_indx in enumerate(dicionary['experiment'][cond][
+                                    'sequence_indices_with_data_points_per_cycle'][cyc_index]):
+                            if seq_indx in dicionary['experiment'][cond][
+                                'indices_of_all_sequences_with_transits_per_cycle'][cyc_index][transit_indx]:
+                                b.append(dicionary['experiment'][cond][
+                                             'BP_counts_per_data_point_per_cycle'][cyc_index][i])
+                                d.append(dicionary['experiment'][cond][
+                                             'DP_counts_per_data_point_per_cycle'][cyc_index][i])
+
+                # bright_counts_per_data_point = np.array(sum(dicionary['experiment'][cond]
+                #                                             ['BP_counts_per_data_point_per_cycle'], []))
+                # dark_counts_per_data_point = np.array(sum(dicionary['experiment'][cond]
+                #                                           ['DP_counts_per_data_point_per_cycle'], []))
+                bright_counts_per_data_point = np.array(b)
+                dark_counts_per_data_point = np.array(d)
 
                 # rel_indices = np.where((bright_counts_per_data_point + dark_counts_per_data_point) < 2)
                 rel_indices = np.where((bright_counts_per_data_point + dark_counts_per_data_point) > 0)
@@ -1507,11 +1524,14 @@ class CustomErrorbarHandler(matplotlib.legend_handler.HandlerErrorbar):
 if __name__ == '__main__':
     # tansit_conditions is a list of lists. Each list comprises a list of conditions for transits and the number
     # of photons reflected in the "preparation" pulse to take for SPRINT data analysis.
-    # self = experiment_data_analysis(transit_conditions=[[[[1, 2]], 1], [[[2, 1], [1, 2]], 1], [[[2, 1, 2]], 1]])
-    self = experiment_data_analysis(transit_conditions=[[[[2, 1, 2]], 1]])
+    # self = experiment_data_analysis(transit_conditions=[[[[1, 1, 2]], 0], [[[1, 1, 2]], 1], [[[1, 2, 1]], 0],
+    #                                                     [[[1, 2, 1]], 1], [[[1, 2]], 0], [[[1, 2]], 1],
+    #                                                     [[[2, 1], [1, 2]], 0], [[[2, 1], [1, 2]], 1],
+    #                                                     [[[2, 1, 2]], 0], [[[2, 1, 2]], 1]])
+    # self = experiment_data_analysis(transit_conditions=[[[[2, 1, 2]], 1]])
     # self = experiment_data_analysis(transit_conditions=[[[[1, 1, 2]], 0], [[[1, 1, 2]], 1], [[[1, 2, 1]], 0],
     #                                                     [[[1, 2, 1]], 1]])
 
-    # self = experiment_data_analysis(analyze_results=True)
-    # self.f.canvas.mpl_connect('pick_event', self.onpick)
-    # plt.show()
+    self = experiment_data_analysis(analyze_results=True)
+    self.f.canvas.mpl_connect('pick_event', self.onpick)
+    plt.show()
