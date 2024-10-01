@@ -7,7 +7,6 @@ import json
 import math
 import pymsgbox
 import pathlib
-import matplotlib.pyplot as plt
 from tkinter import *
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
@@ -19,6 +18,15 @@ from tqdm import tqdm
 import matplotlib
 from matplotlib.container import ErrorbarContainer
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
+from matplotlib.widgets import RangeSlider
+from matplotlib.widgets import TextBox
+from matplotlib.widgets import Button
+import numpy as np
+import scipy.stats as stat
+from scipy.optimize import fsolve
 
 class experiment_data_analysis:
     def popupbox_inquiry(self, message=''):
@@ -1111,25 +1119,28 @@ class experiment_data_analysis:
 
         return dictionary
 
-    def analyze_all_results(self, north_efficiency=0.357, south_efficiency=0.465375):
+    def analyze_all_results(self, north_efficiency=0.357, south_efficiency=0.465375, min_transit_len=1000,
+                            max_transit_len=10000):
         '''
 
         :return:
         '''
-        self.list_of_all_analysis_dictionaries = self.load_all_analysis_data()
-        self.conditions = [key for key in self.list_of_all_analysis_dictionaries[0]['background'].keys() if '[[' in key]
-        self.experiment_type = self.reflection_or_transmission_exp(self.list_of_all_analysis_dictionaries[0])  # returns 'T' for transmission and 'R' for reflection
         self.number_of_photons_per_pulse = []
         self.fidelity, self.qber, self.qber_err, self.SNR, self.qber_bg, self.qber_err_bg = [
             [
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
             ] for _ in range(6)
         ]
+        self.position_of_data = [
+            [
+                [] for _ in range(len(self.list_of_all_analysis_dictionaries))
+            ] for _ in range(len(self.conditions))
+        ]
         for indx, dicionary in enumerate(self.list_of_all_analysis_dictionaries):
             (self.number_of_photons_per_pulse.
              append(sum(self.calc_average_photons_per_SPRINT_pulse(dicionary, north_efficiency=0.357,
                                                                    south_efficiency=0.465375))))
-            for cond in self.conditions:
+            for cond_index, cond in enumerate(self.conditions):
                 # Calculate fidelity for each condition
                 if self.experiment_type == 'T':
                     self.fidelity[indx].append(dicionary['experiment'][cond]['transmission'] /
@@ -1147,7 +1158,7 @@ class experiment_data_analysis:
                 d = []
                 for cyc_index, lst_of_transits in enumerate(dicionary['experiment'][cond]['all_transits_length_per_cond']):
                     for transit_indx, transit_len in enumerate(lst_of_transits):
-                        if transit_len <= 1000:
+                        if (transit_len <= min_transit_len) or (transit_len >= max_transit_len):
                             continue
                         for i, seq_indx in enumerate(dicionary['experiment'][cond][
                                     'sequence_indices_with_data_points_per_cycle'][cyc_index]):
@@ -1157,6 +1168,7 @@ class experiment_data_analysis:
                                              'BP_counts_per_data_point_per_cycle'][cyc_index][i])
                                 d.append(dicionary['experiment'][cond][
                                              'DP_counts_per_data_point_per_cycle'][cyc_index][i])
+                                self.position_of_data[cond_index][indx].append([cyc_index, seq_indx])
 
                 # bright_counts_per_data_point = np.array(sum(dicionary['experiment'][cond]
                 #                                             ['BP_counts_per_data_point_per_cycle'], []))
@@ -1177,11 +1189,15 @@ class experiment_data_analysis:
                 ## calculate qber
                 Bright_counts = sum(bright_counts_per_data_point[rel_indices])
                 Dark_counts = sum(dark_counts_per_data_point[rel_indices])
-                self.qber[indx].append(Dark_counts / (Dark_counts + Bright_counts))
-                qber_std = np.sqrt((Dark_counts / (Dark_counts + Bright_counts) ** 2 *
-                                    np.sqrt(Bright_counts)) ** 2 + (Bright_counts / (Dark_counts + Bright_counts) ** 2 *
-                                                                    np.sqrt(Dark_counts)) ** 2)
-                self.qber_err[indx].append(qber_std)
+                if (Bright_counts + Dark_counts) == 0:
+                    self.qber[indx].append(0)
+                    self.qber_err[indx].append(0)
+                else:
+                    self.qber[indx].append(Dark_counts / (Dark_counts + Bright_counts))
+                    qber_std = np.sqrt((Dark_counts / (Dark_counts + Bright_counts) ** 2 *
+                                        np.sqrt(Bright_counts)) ** 2 + (Bright_counts / (Dark_counts + Bright_counts) ** 2 *
+                                                                        np.sqrt(Dark_counts)) ** 2)
+                    self.qber_err[indx].append(qber_std)
                 self.SNR[indx].append(dicionary['experiment'][cond]['SNR'])
 
                 # QBER without atoms:
@@ -1227,9 +1243,6 @@ class experiment_data_analysis:
                 #                     np.sqrt(dicionary['experiment'][cond]['Dark'])) ** 2)
                 # self.qber_err[indx].append(qber_std)
                 # self.SNR[indx].append(dicionary['experiment'][cond]['SNR'])
-
-        self.plot_all_QBER_results_bg()
-        self.plot_all_QBER_results()
 
     def calc_average_photons_per_SPRINT_pulse(self, dictionary, coupling_tranmission=0.49, north_efficiency=0.357,
                                               south_efficiency=0.465375):
@@ -1324,16 +1337,41 @@ class experiment_data_analysis:
 
         :return:
         '''
+
+        # General plot parameters
+        mpl.rcParams['font.family'] = 'Cambria'
+        mpl.rcParams['font.size'] = 18
+        mpl.rcParams['axes.linewidth'] = 2
+        # mpl.rcParams['axes.spines.top'] = False
+        # mpl.rcParams['axes.spines.right'] = False
+        mpl.rcParams['xtick.major.size'] = 10
+        mpl.rcParams['xtick.major.width'] = 2
+        mpl.rcParams['ytick.major.size'] = 10
+        mpl.rcParams['ytick.major.width'] = 2
+
         self.plot_lines = []
-        self.f, self.ax = plt.subplots(1, 1, num='QBER')
+        # self.f, self.ax = plt.subplots(1, 1, num='QBER')
+        self.f = plt.figure(num='QBER', figsize=(10, 8.5))
+        self.ax = self.f.add_subplot(111)
+        self.f.subplots_adjust(bottom=0.10, top=0.90)
         my_handler_map = {ErrorbarContainer: CustomErrorbarHandler(numpoints=1)}
+
+        # Create axes for sliders
+        ax_transit_length = self.f.add_axes([0.3, 0.95, 0.4, 0.05])
+        ax_transit_length.spines['top'].set_visible(True)
+        ax_transit_length.spines['right'].set_visible(True)
+
+        # Create slider
+        self.s_transit_length = RangeSlider(ax=ax_transit_length, label='Transit length', valmin=500, valmax=10000,
+                                            valinit=(1000, 10000), valfmt=' %d [ns]', facecolor='#cc7000')
+
         for indx, cond in enumerate(self.conditions):
             qber_per_cond = [qber[indx] for qber in self.qber]
             qber_err_per_cond = [qber_err[indx] for qber_err in self.qber_err]
             SNR_text = '%.1f' % np.mean([snr[indx] for snr in self.SNR])
             # plot_line, = plt.plot(self.number_of_photons_per_pulse, qber_per_cond, label=('condition: ' + cond))
             plot_line = self.ax.errorbar(self.number_of_photons_per_pulse, qber_per_cond, yerr=qber_err_per_cond, fmt='-o',
-                                      capsize=3, label=('condition: ' + cond + ', SNR = ' + SNR_text))
+                                         capsize=3, label=('condition: ' + cond + ', SNR = ' + SNR_text))
             self.plot_lines.append(plot_line)
             # plt.text(np.array(self.number_of_photons_per_pulse)*1.03, np.array(qber_per_cond)*1.03, SNR_text, fontsize=10)
         self.lgnd = self.ax.legend(loc='upper right', handler_map=my_handler_map)
@@ -1362,7 +1400,35 @@ class experiment_data_analysis:
         legend_line.set_alpha(1.0 if vis else 0.2)
         self.f.canvas.draw()
 
-    # Class's constructor
+    def update(self, val):
+        (min_length, max_length) = self.s_transit_length.val
+        self.analyze_all_results(north_efficiency=0.357, south_efficiency=0.465375, min_transit_len=min_length,
+                                 max_transit_len=max_length)
+
+        for indx, cond in enumerate(self.conditions):
+            qber_per_cond = np.array([qber[indx] for qber in self.qber])
+            qber_err_per_cond = np.array([qber_err[indx] for qber_err in self.qber_err])
+            # self.plot_lines[indx].set_data([self.number_of_photons_per_pulse], [qber_per_cond])
+            ln, (err_top, err_bot), (bars, ) = self.plot_lines[indx]
+
+            ln.set_data([self.number_of_photons_per_pulse], [qber_per_cond])
+            x_base = self.number_of_photons_per_pulse
+            y_base = qber_per_cond
+
+            yerr_top = y_base + qber_err_per_cond
+            yerr_bot = y_base - qber_err_per_cond
+
+            err_top.set_ydata(yerr_top)
+            err_bot.set_ydata(yerr_bot)
+
+            new_segments = [np.array([[x, yt], [x, yb]]) for
+                            x, yt, yb in zip(x_base, yerr_top, yerr_bot)]
+
+            bars.set_segments(new_segments)
+
+        self.f.canvas.draw_idle()
+
+        # Class's constructor
     def __init__(self, analyze_results=False, transit_conditions=None):
 
         # self.exp_type, self.exp_date, self.exp_time = self.popupbox_inquiry()
@@ -1440,7 +1506,15 @@ class experiment_data_analysis:
         self.transit_conditions = transit_conditions
 
         if analyze_results:
-            self.analyze_all_results(north_efficiency=0.357, south_efficiency=0.465375)
+            self.list_of_all_analysis_dictionaries = self.load_all_analysis_data()
+            self.conditions = [key for key in self.list_of_all_analysis_dictionaries[0]['background'].keys() if
+                               '[[' in key]
+            self.experiment_type = self.reflection_or_transmission_exp(
+                self.list_of_all_analysis_dictionaries[0])  # returns 'T' for transmission and 'R' for reflection
+            self.analyze_all_results(north_efficiency=0.357, south_efficiency=0.465375, min_transit_len=1000,
+                                     max_transit_len=6000)
+            self.plot_all_QBER_results_bg()
+            self.plot_all_QBER_results()
         else:
             # Open folder and load to dictionary
             self.Exp_dict = self.open_folder_to_dictionary()
@@ -1529,9 +1603,9 @@ if __name__ == '__main__':
     #                                                     [[[2, 1], [1, 2]], 0], [[[2, 1], [1, 2]], 1],
     #                                                     [[[2, 1, 2]], 0], [[[2, 1, 2]], 1]])
     # self = experiment_data_analysis(transit_conditions=[[[[2, 1, 2]], 1]])
-    # self = experiment_data_analysis(transit_conditions=[[[[1, 1, 2]], 0], [[[1, 1, 2]], 1], [[[1, 2, 1]], 0],
-    #                                                     [[[1, 2, 1]], 1]])
+    # self = experiment_data_analysis(transit_conditions=[[[[2, 1]], 0],  [[[2, 1]], 1]])
 
     self = experiment_data_analysis(analyze_results=True)
+    self.s_transit_length.on_changed(self.update)
     self.f.canvas.mpl_connect('pick_event', self.onpick)
     plt.show()
