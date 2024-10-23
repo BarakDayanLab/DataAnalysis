@@ -47,6 +47,9 @@
     "all_transits_length_per_cond": {
         "value_name": "all_transits_length_per_cond"
     },
+    "all_transits_reflections_folded_tt": {
+        "value_name": "all_transits_reflections_folded_tt"
+    },
     "seq_with_data_points": {
         "value_name": "seq_with_data_points"
     },
