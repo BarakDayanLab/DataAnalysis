@@ -1190,7 +1190,10 @@ class experiment_data_analysis:
         :return:
         '''
         self.number_of_photons_per_pulse = []
-        self.avg_potons_per_reflection_bg = []
+        self.avg_photons_per_reflection_bg = []
+        self.avg_photons_per_transmission_bg = []
+        self.avg_photons_per_reflection = []
+        self.avg_photons_per_transmission = []
         self.qber, self.qber_err, self.SNR, self.qber_bg, self.qber_err_bg = [
             [
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
@@ -1220,11 +1223,18 @@ class experiment_data_analysis:
             ] for _ in range(2)
         ]
         for indx, dicionary in enumerate(self.list_of_all_analysis_dictionaries):
-            number_of_photons_per_pulse, avg_potons_per_reflection_bg = (
-                self.calc_average_photons_per_SPRINT_pulse(dicionary, coupling_tranmission=0.477,
+            number_of_photons_per_pulse, avg_photons_per_reflection_bg, avg_photons_per_transmission_bg = (
+                self.calc_average_photons_per_SPRINT_pulse(dicionary['background'], coupling_tranmission=0.477,
                                                            north_efficiency=0.357, south_efficiency=0.465375))
             self.number_of_photons_per_pulse.append(number_of_photons_per_pulse)
-            self.avg_potons_per_reflection_bg.append(avg_potons_per_reflection_bg)
+            self.avg_photons_per_reflection_bg.append(avg_photons_per_reflection_bg)
+            self.avg_photons_per_transmission_bg.append(avg_photons_per_transmission_bg)
+
+            _, avg_photons_per_reflection, avg_photons_per_transmission = (
+                self.calc_average_photons_per_SPRINT_pulse(dicionary['experiment'], coupling_tranmission=0.477,
+                                                           north_efficiency=0.357, south_efficiency=0.465375))
+            self.avg_photons_per_reflection.append(avg_photons_per_reflection)
+            self.avg_photons_per_transmission.append(avg_photons_per_transmission)
 
             self.avg_lock_err[indx] = [statistics.mean(dicionary['experiment']['Cavity_Lock_Error']),
                                        statistics.stdev(dicionary['experiment']['Cavity_Lock_Error'])]
@@ -1239,10 +1249,12 @@ class experiment_data_analysis:
                 r = []  # reflection
                 b = []  # bright
                 d = []  # dark
+                number_of_transits = 0
                 for cyc_index, lst_of_transits in enumerate(dicionary['experiment'][cond]['all_transits_length_per_cond']):
                     for transit_indx, transit_len in enumerate(lst_of_transits):
                         if (transit_len <= min_transit_len) or (transit_len >= max_transit_len):
                             continue
+                        number_of_transits += 1
                         for i, seq_indx in enumerate(dicionary['experiment'][cond][
                                     'sequence_indices_with_data_points_per_cycle'][cyc_index]):
                             if seq_indx in dicionary['experiment'][cond][
@@ -1270,16 +1282,16 @@ class experiment_data_analysis:
                 bright_counts_per_data_point = np.array(b)
                 dark_counts_per_data_point = np.array(d)
 
-                rel_indices_fidelity = (
-                    np.where((transmission_counts_per_data_point + reflection_counts_per_data_point) > 0))
-                transmission_counts_per_data_point[rel_indices_fidelity] = \
-                    (transmission_counts_per_data_point[rel_indices_fidelity] /
-                     (transmission_counts_per_data_point[rel_indices_fidelity] +
-                     reflection_counts_per_data_point[rel_indices_fidelity]))
-                reflection_counts_per_data_point[rel_indices_fidelity] = \
-                    (reflection_counts_per_data_point[rel_indices_fidelity] /
-                     (transmission_counts_per_data_point[rel_indices_fidelity] +
-                     reflection_counts_per_data_point[rel_indices_fidelity]))
+                # rel_indices_fidelity = (
+                #     np.where((transmission_counts_per_data_point + reflection_counts_per_data_point) > 0))
+                # transmission_counts_per_data_point[rel_indices_fidelity] = \
+                #     (transmission_counts_per_data_point[rel_indices_fidelity] /
+                #      (transmission_counts_per_data_point[rel_indices_fidelity] +
+                #      reflection_counts_per_data_point[rel_indices_fidelity]))
+                # reflection_counts_per_data_point[rel_indices_fidelity] = \
+                #     (reflection_counts_per_data_point[rel_indices_fidelity] /
+                #      (transmission_counts_per_data_point[rel_indices_fidelity] +
+                #      reflection_counts_per_data_point[rel_indices_fidelity]))
 
                 rel_indices = np.where((bright_counts_per_data_point + dark_counts_per_data_point) > 0)
                 bright_counts_per_data_point[rel_indices] = (bright_counts_per_data_point[rel_indices] /
@@ -1293,10 +1305,14 @@ class experiment_data_analysis:
                 transmission = sum(transmission_counts_per_data_point) / transmission_efficiency
                 reflection = sum(reflection_counts_per_data_point) / reflection_efficiency
                 transmission_given_reflection = len(np.where(np.array(t)[np.where(np.array(r))])[0]) / transmission_efficiency
-                self.transmission[indx].append(transmission / len(transmission_counts_per_data_point))
-                self.transmission_err[indx].append(np.sqrt(sum(transmission_counts_per_data_point)) / transmission_efficiency / len(transmission_counts_per_data_point))
-                self.reflection[indx].append(reflection / len(reflection_counts_per_data_point))
-                self.reflection_err[indx].append(np.sqrt(sum(reflection_counts_per_data_point)) / reflection_efficiency / len(reflection_counts_per_data_point))
+                # self.transmission[indx].append(transmission / len(transmission_counts_per_data_point))
+                # self.transmission_err[indx].append(np.sqrt(sum(transmission_counts_per_data_point)) / transmission_efficiency / len(transmission_counts_per_data_point))
+                # self.reflection[indx].append(reflection / len(reflection_counts_per_data_point))
+                # self.reflection_err[indx].append(np.sqrt(sum(reflection_counts_per_data_point)) / reflection_efficiency / len(reflection_counts_per_data_point))
+                self.transmission[indx].append(transmission / number_of_transits)
+                self.transmission_err[indx].append(np.sqrt(sum(transmission_counts_per_data_point)) / transmission_efficiency / number_of_transits)
+                self.reflection[indx].append(reflection / number_of_transits)
+                self.reflection_err[indx].append(np.sqrt(sum(reflection_counts_per_data_point)) / reflection_efficiency / number_of_transits)
                 self.information_gain_Eve[indx].append(transmission_given_reflection /
                                                        (len(np.where(np.array(r))[0]) / reflection_efficiency))
                 self.information_gain_Eve_err[indx].append(np.sqrt(
@@ -1379,9 +1395,8 @@ class experiment_data_analysis:
         :param coupling_tranmission:
         :return:
         '''
-        clicks_in_north_per_seq = (dictionary['background']['folded_tt_N'] + dictionary['background']['folded_tt_BP']
-                                   + dictionary['background']['folded_tt_DP'])
-        clicks_in_south_per_seq = dictionary['background']['folded_tt_S'] + dictionary['background']['folded_tt_FS']
+        clicks_in_north_per_seq = dictionary['folded_tt_N'] + dictionary['folded_tt_BP'] + dictionary['folded_tt_DP']
+        clicks_in_south_per_seq = dictionary['folded_tt_S'] + dictionary['folded_tt_FS']
         # plt.plot(clicks_in_north_per_seq)
         # plt.plot(clicks_in_south_per_seq)
         total_clicks_in_SPRINT_pulse_north = []
@@ -1389,7 +1404,7 @@ class experiment_data_analysis:
         total_clicks_in_SPRINT_pulse_transmission_considering_efficiency = []
         total_clicks_in_SPRINT_pulse_reflection_considering_efficiency = []
         pulse_duration = []
-        for lst in dictionary['background']['Pulses_location_in_seq']:
+        for lst in dictionary['Pulses_location_in_seq']:
             if lst[-1] == 'n':
                 pulse_duration.append(lst[1]-lst[0])
                 total_clicks_in_SPRINT_pulse_north.append(sum(clicks_in_north_per_seq[lst[0]:lst[1]]))
@@ -1407,14 +1422,16 @@ class experiment_data_analysis:
                 (total_clicks_in_SPRINT_pulse_transmission_considering_efficiency.
                  append(sum(clicks_in_south_per_seq[lst[0]:lst[1]])/south_efficiency))
 
-        number_of_seq_in_exp = (math.ceil((dictionary['background']['Exp_config_values']['M_window']-1e6) /
-                                          (len(dictionary['background']['filter_N']))))
+        number_of_seq_in_exp = (math.ceil((dictionary['Exp_config_values']['M_window']-1e6) /
+                                          (len(dictionary['filter_N']))))
         avg_photons_per_pulse = (np.array(total_clicks_in_SPRINT_pulse_transmission_considering_efficiency) /
                                  (coupling_tranmission * number_of_seq_in_exp))
         avg_potons_per_reflection = (np.array(total_clicks_in_SPRINT_pulse_reflection_considering_efficiency) /
                                      number_of_seq_in_exp)
+        avg_potons_per_transmission = (np.array(total_clicks_in_SPRINT_pulse_transmission_considering_efficiency) /
+                                       number_of_seq_in_exp)
 
-        return sum(avg_photons_per_pulse), sum(avg_potons_per_reflection)
+        return sum(avg_photons_per_pulse), sum(avg_potons_per_reflection), sum(avg_potons_per_transmission)
 
     def reflection_or_transmission_exp(self, dictionary):
         '''
@@ -1497,7 +1514,7 @@ class experiment_data_analysis:
             qber_err_per_cond = [qber_err[indx] for qber_err in self.qber_err]
             SNR_text = '%.1f' % np.mean([snr[indx] for snr in self.SNR])
             # plot_line, = plt.plot(self.number_of_photons_per_pulse, qber_per_cond, label=('condition: ' + cond))
-            plot_line = self.ax.errorbar(self.number_of_photons_per_pulse, qber_per_cond, yerr=qber_err_per_cond, fmt='-o',
+            plot_line = self.ax.errorbar(self.number_of_photons_per_pulse, qber_per_cond, yerr=qber_err_per_cond, fmt='o',
                                          capsize=3, label=('condition: ' + cond + ', SNR = ' + SNR_text))
             self.plot_lines.append(plot_line)
             # plt.text(np.array(self.number_of_photons_per_pulse)*1.03, np.array(qber_per_cond)*1.03, SNR_text, fontsize=10)
@@ -1586,7 +1603,7 @@ class experiment_data_analysis:
         self.f_xy = plt.figure(num=fig_name, figsize=(10, 8.5))
         self.ax_xy = self.f_xy.add_subplot(111)
 
-        plot_line_xy = self.ax_xy.errorbar(x, y, yerr=y_err, fmt='-o', capsize=3)
+        plot_line_xy = self.ax_xy.errorbar(x, y, yerr=y_err, fmt='o', capsize=3)
 
         # plot theory line
         # self.ax_RT.plot(self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['mean_photons'],
@@ -1625,6 +1642,35 @@ class experiment_data_analysis:
         plt.title('Linear Fit Comparison')
         # plt.legend()
         plt.grid(True)
+        plt.show()
+
+    def plot_with_and_without_atoms(self, x, y_with, y_with_err, y_without, x_title='', y_title=''):
+        '''
+
+        :param x:
+        :param y:
+        :return:
+        '''
+
+        x = np.array(x)
+        y_with = np.array(y_with)
+        y_without = np.array(y_without)
+
+        plt.figure(figsize=(12, 8))
+        # plt.scatter(x, y_with, label='with atoms')
+        plt.errorbar(x, y_with, yerr=y_with_err, fmt='o', capsize=3, label='with atoms')
+        plt.scatter(x, y_without, label='without atoms')
+
+        coeffs = np.polyfit(x, y_without, 1)
+        poly = np.poly1d(coeffs)
+        plt.plot(x, poly(x), color='red', label='NumPy polyfit')
+        plt.text(0.05, 0.95, f'NumPy: y = {coeffs[0]:.4f}x + {coeffs[1]:.4f}',
+                 transform=plt.gca().transAxes, fontsize=10, verticalalignment='top')
+
+        plt.xlabel(x_title)
+        plt.ylabel(y_title)
+        plt.grid(True)
+        plt.legend()
         plt.show()
 
     def onpick(self, event):
@@ -1848,7 +1894,13 @@ if __name__ == '__main__':
     self = experiment_data_analysis(analyze_results=True)
     self.s_transit_length.on_changed(self.update)
     self.f.canvas.mpl_connect('pick_event', self.onpick)
-    self.plot_linear_fit(self.number_of_photons_per_pulse, self.avg_potons_per_reflection_bg)
+    self.plot_linear_fit(self.number_of_photons_per_pulse, self.avg_photons_per_reflection_bg)
+    self.plot_with_and_without_atoms(self.number_of_photons_per_pulse, [elem[4] for elem in self.transmission],
+                                     [elem[4] for elem in self.transmission_err], self.avg_photons_per_transmission_bg,
+                                     x_title='$\mu $[#photons from Alice]', y_title='T [#photons]')
+    self.plot_with_and_without_atoms(self.number_of_photons_per_pulse, [elem[4] for elem in self.reflection],
+                                     [elem[4] for elem in self.reflection_err], self.avg_photons_per_reflection_bg,
+                                     x_title='$\mu $[#photons from Alice]', y_title='R [#photons]')
     self.plot_x_y(self.number_of_photons_per_pulse, [elem[4] for elem in self.information_gain_Eve],
                   [elem[4] for elem in self.information_gain_Eve_err], 'Information gain Eve' + self.conditions[4])
     plt.show()
