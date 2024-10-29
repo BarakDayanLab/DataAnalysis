@@ -113,11 +113,17 @@ class experiment_data_analysis:
         '''
         detection_pulses_per_seq = 0
         SPRINT_pulses_per_seq = 0
-        for tup in self.Pulses_location_in_seq:
+        ignore_index = -1
+        for index, tup in enumerate(self.Pulses_location_in_seq):
             if (tup[2] == 'N') or (tup[2] == 'S'):
+                if SPRINT_pulses_per_seq > 0:
+                    ignore_index = index
+                    continue
                 detection_pulses_per_seq += 1
             elif (tup[2] == 'n') or (tup[2] == 's'):
                 SPRINT_pulses_per_seq += 1
+        if ignore_index > -1:
+            self.Pulses_location_in_seq.pop(ignore_index)
         return detection_pulses_per_seq, SPRINT_pulses_per_seq
 
     def get_pulses_location_in_seq(self, delay, seq, smearing):
@@ -144,8 +150,37 @@ class experiment_data_analysis:
         pulses_loc = [(indices[i] - smearing, indices[i + 1] + smearing) for i in range(0, len(indices), 2)]
         # Recreate the signal by filling it with 1's in the relevant places
         seq_filter_with_smearing = np.zeros(seq_filter.shape[0])
-        for (start, end) in pulses_loc: np.put_along_axis(seq_filter_with_smearing, np.arange(start, end), 1, axis=0)
+        for (start, end) in pulses_loc:
+            if start in sum(self.Pulses_location_in_seq, []):
+                np.put_along_axis(seq_filter_with_smearing, np.arange(start, end), 1, axis=0)
         return pulses_loc, seq_filter_with_smearing
+
+    def construct_pulses_sequence(self, dict, pulse_seq_N, pulse_seq_S, pulse_len):
+        """
+        Given the pulses time-bins from North and South, and the Pulse Length:
+        - Constructs an array of tuples of the form (Start-tim, End-Time, Direction)
+        - Constructs a string representing the pulse sequence (e.g. 'N-S-N-S-N-S-s-s')
+        """
+
+        N_detection_pulses_locations = [tup + ('N',) for tup in pulse_seq_N if (tup[1] - tup[0]) < pulse_len]
+        n_sprint_pulses_locations = [tup + ('n',) for tup in pulse_seq_N if (tup[1] - tup[0]) >= pulse_len]
+        S_detection_pulses_locations = [tup + ('S',) for tup in pulse_seq_S if (tup[1] - tup[0]) < pulse_len]
+        s_sprint_pulses_locations = [tup + ('s',) for tup in pulse_seq_S if (tup[1] - tup[0]) >= pulse_len]
+        all_pulses = N_detection_pulses_locations + n_sprint_pulses_locations + S_detection_pulses_locations + s_sprint_pulses_locations
+        all_pulses = sorted(all_pulses, key=lambda tup: tup[1])
+
+        str = '-'.join(tup[2] for tup in all_pulses)
+
+        # Iterate over all pulses - if one of them is sprint pulse and the Early AOM is open,
+        # this means we're "redirecting" the photon to do an "X" measurement.
+        measurement_direction = 'Z'
+        for tup in all_pulses:
+            # if all(x == 0 for x in Config.PNSA_Exp_Square_samples_Early[tup[0]:tup[1]]):
+            if tup[2] in 'ns' and dict['input']['sequences']['Early_sequence_vector'][tup[0]] > 0:
+                measurement_direction = 'X'
+                break
+
+        return all_pulses, str, measurement_direction
 
     def init_params_for_experiment(self, dict):
 
@@ -177,6 +212,10 @@ class experiment_data_analysis:
         self.pulses_location_in_seq_N, self.filter_N = self.get_pulses_location_in_seq(self.filter_delay[1],
                                                                                        dict['input']['sequences']['North_sequence_vector'],
                                                                                        smearing=0)  # smearing=int(Config.num_between_zeros/2))
+
+        # Construct the pulses sequence and representing string for it (e.g. 'N-S-N-S-N-S-s-s')
+        sprint_pulse_len = int(max(np.diff(self.pulses_location_in_seq_S[-1]), np.diff(self.pulses_location_in_seq_N[-1])))
+        self.sorted_pulses, self.experiment_type, self.measurement_direction = self.construct_pulses_sequence(dict, self.pulses_location_in_seq_N, self.pulses_location_in_seq_S, sprint_pulse_len)
 
         # define empty variables
 
@@ -708,11 +747,12 @@ class experiment_data_analysis:
                             for sprint_pulse in SPRINT_pulse_number:
                                 transmissions += len(self.num_of_SPRINT_transmissions_per_seq_N_[seq_indx][sprint_pulse-1])
                                 reflections += len(self.num_of_SPRINT_reflections_per_seq_N_[seq_indx][sprint_pulse-1])
-                            if (transmissions + reflections) == 1:
+                            # if (transmissions + reflections) == 1:
+                            if (transmissions + reflections) > 0:
                                 seq_with_data_points.append(seq_indx)
                                 reflection_SPRINT_data.append(reflections)
                                 transmission_SPRINT_data.append(transmissions)
-                            if (transmissions + reflections) > 0:
+                            # if (transmissions + reflections) > 0:
                                 BP_counts_SPRINT_data.append(len(self.num_of_BP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
                                 DP_counts_SPRINT_data.append(len(self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
                         elif self.Pulses_location_in_seq[self.number_of_detection_pulses_per_seq-1+SPRINT_pulse_number[0]][2] == 's':
@@ -721,11 +761,12 @@ class experiment_data_analysis:
                             for sprint_pulse in SPRINT_pulse_number:
                                 transmissions += len(self.num_of_SPRINT_transmissions_per_seq_S_[seq_indx][sprint_pulse-1])
                                 reflections += len(self.num_of_SPRINT_reflections_per_seq_S_[seq_indx][sprint_pulse-1])
-                            if (transmissions + reflections) == 1:
+                            # if (transmissions + reflections) == 1:
+                            if (transmissions + reflections) > 0:
                                 seq_with_data_points.append(seq_indx)
                                 reflection_SPRINT_data.append(reflections)
                                 transmission_SPRINT_data.append(transmissions)
-                            if (transmissions + reflections) > 0:
+                            # if (transmissions + reflections) > 0:
                                 BP_counts_SPRINT_data.append(len(self.num_of_BP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
                                 DP_counts_SPRINT_data.append(len(self.num_of_DP_counts_per_seq_in_SPRINT_pulse[seq_indx][SPRINT_pulse_number[-1]-1]))
         return seq_with_data_points, reflection_SPRINT_data, transmission_SPRINT_data, BP_counts_SPRINT_data, DP_counts_SPRINT_data
@@ -1155,10 +1196,11 @@ class experiment_data_analysis:
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
             ] for _ in range(5)
         ]
-        self.fidelity, self.transmission, self.transmission_err, self.reflection, self.reflection_err = [
+        (self.fidelity, self.transmission, self.transmission_err, self.reflection, self.reflection_err,
+         self.information_gain_Eve, self.information_gain_Eve_err) = [
             [
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
-            ] for _ in range(5)
+            ] for _ in range(7)
         ]
         self.avg_k_ex, self.avg_lock_err = [
             [
@@ -1247,13 +1289,22 @@ class experiment_data_analysis:
                                                            (bright_counts_per_data_point[rel_indices] +
                                                             dark_counts_per_data_point[rel_indices]))
 
-                ## calculate fidelity
-                transmission = (sum(t) / transmission_efficiency) / len(t)
-                reflection = (sum(r) / reflection_efficiency) / len(r)
-                self.transmission[indx].append(transmission)
-                self.transmission_err[indx].append(np.sqrt(sum(t)) / transmission_efficiency / len(t))
-                self.reflection[indx].append(reflection)
-                self.reflection_err[indx].append(np.sqrt(sum(r)) / reflection_efficiency / len(r))
+                ## calculate fidelity and data gain for alice
+                transmission = sum(transmission_counts_per_data_point) / transmission_efficiency
+                reflection = sum(reflection_counts_per_data_point) / reflection_efficiency
+                transmission_given_reflection = len(np.where(np.array(t)[np.where(np.array(r))])[0]) / transmission_efficiency
+                self.transmission[indx].append(transmission / len(transmission_counts_per_data_point))
+                self.transmission_err[indx].append(np.sqrt(sum(transmission_counts_per_data_point)) / transmission_efficiency / len(transmission_counts_per_data_point))
+                self.reflection[indx].append(reflection / len(reflection_counts_per_data_point))
+                self.reflection_err[indx].append(np.sqrt(sum(reflection_counts_per_data_point)) / reflection_efficiency / len(reflection_counts_per_data_point))
+                self.information_gain_Eve[indx].append(transmission_given_reflection /
+                                                       (len(np.where(np.array(r))[0]) / reflection_efficiency))
+                self.information_gain_Eve_err[indx].append(np.sqrt(
+                    (len(np.where(np.array(t)[np.where(np.array(r))])[0]) *
+                     (reflection_efficiency / (transmission_efficiency * len(np.where(np.array(r))[0]))) ** 2) +
+                    (len(np.where(np.array(r))[0]) *
+                     (transmission_given_reflection / (len(np.where(np.array(r))[0])**2 / reflection_efficiency)) ** 2))
+                )
                 # Calculate fidelity for each condition
                 if self.experiment_type == 'T':
                     self.fidelity[indx].append(transmission / (transmission + reflection))
@@ -1452,9 +1503,9 @@ class experiment_data_analysis:
             # plt.text(np.array(self.number_of_photons_per_pulse)*1.03, np.array(qber_per_cond)*1.03, SNR_text, fontsize=10)
 
         # plot theory line
-        self.ax.plot(self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['mean_photons'],
-                     self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['qber'],
-                     'k--')
+        # self.ax.plot(self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['mean_photons'],
+        #              self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['qber'],
+        #              'k--')
 
         self.lgnd = self.ax.legend(loc='upper right', handler_map=my_handler_map)
         self.ax.set_xlim(0, 1.3)
@@ -1515,6 +1566,40 @@ class experiment_data_analysis:
         self.ax_RT.set_xlabel('$\mu $[#photons from Alice]', fontsize=24)
         self.ax_RT.grid(visible=True, which='both', axis='both')
         self.ax_RT.xaxis.set_minor_locator(AutoMinorLocator(2))
+
+    def plot_x_y(self, x, y, y_err, fig_name):
+        '''
+
+        :return:
+        '''
+
+        # General plot parameters
+        mpl.rcParams['font.family'] = 'Cambria'
+        mpl.rcParams['font.size'] = 18
+        mpl.rcParams['axes.linewidth'] = 2
+        mpl.rcParams['xtick.major.size'] = 10
+        mpl.rcParams['xtick.major.width'] = 2
+        mpl.rcParams['ytick.major.size'] = 10
+        mpl.rcParams['ytick.major.width'] = 2
+
+        self.plot_lines_RT = []
+        self.f_xy = plt.figure(num=fig_name, figsize=(10, 8.5))
+        self.ax_xy = self.f_xy.add_subplot(111)
+
+        plot_line_xy = self.ax_xy.errorbar(x, y, yerr=y_err, fmt='-o', capsize=3)
+
+        # plot theory line
+        # self.ax_RT.plot(self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['mean_photons'],
+        #                 self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['qber'],
+        #                 'k--')
+
+        self.lgnd = self.ax_xy.legend(loc='upper right')
+        self.ax.set_xlim(0)
+        self.ax.set_ylim(0)
+        self.ax_xy.set_ylabel('Information gain Eve', fontsize=24)
+        self.ax_xy.set_xlabel('$\mu $[#photons from Alice]', fontsize=24)
+        self.ax_xy.grid(visible=True, which='both', axis='both')
+        self.ax_xy.xaxis.set_minor_locator(AutoMinorLocator(2))
 
     def plot_linear_fit(self, x, y):
         '''
@@ -1755,11 +1840,15 @@ if __name__ == '__main__':
     #                                                     [[[2, 1], [1, 2]], 0], [[[2, 1], [1, 2]], 1],
     #                                                     [[[2, 1, 2]], 0], [[[2, 1, 2]], 1]])
     # self = experiment_data_analysis(transit_conditions=[[[[2, 1], [1, 2]], 0]])
-    # self = experiment_data_analysis(transit_conditions=[[[[2, 1], [1, 2]], 0], [[[2, 1]], 0],  [[[1, 2]], 0]])
+    # self = experiment_data_analysis(transit_conditions=[[[[2, 1], [1, 2]], 0], [[[2, 1], [1, 2]], 1], [[[2, 1]], 0],
+    #                                                     [[[2, 1]], 1], [[[1, 2]], 0], [[[1, 2]], 1], [[[2, 1, 2]], 0],
+    #                                                     [[[2, 1, 2]], 1]])
     # self = experiment_data_analysis(transit_conditions=[[[[2, 1]], 0],  [[[2, 1]], 1]])
 
     self = experiment_data_analysis(analyze_results=True)
     self.s_transit_length.on_changed(self.update)
     self.f.canvas.mpl_connect('pick_event', self.onpick)
     self.plot_linear_fit(self.number_of_photons_per_pulse, self.avg_potons_per_reflection_bg)
+    self.plot_x_y(self.number_of_photons_per_pulse, [elem[4] for elem in self.information_gain_Eve],
+                  [elem[4] for elem in self.information_gain_Eve_err], 'Information gain Eve' + self.conditions[4])
     plt.show()
