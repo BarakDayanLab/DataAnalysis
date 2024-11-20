@@ -182,6 +182,23 @@ class experiment_data_analysis:
 
         return all_pulses, str, measurement_direction
 
+    def system_efficiency(self, taper=[0.8, 0.8, 1], optical_setup=[0.7, 0.7, 0.73], fiber_setup=[0.85, 0.85, 0.85],
+                          detectors=[0.75, 0.75, 0.75], correction_factor=[1.1, 0.9, 1]):
+        '''
+        Calculate directional efficiency from measured values.
+        :param taper: [north direction(late) efficiency, north direction(early) efficiency, south direction efficiency]
+        :param optical_setup: [north direction(late) efficiency, north direction(early) efficiency, south direction efficiency]
+        :param fiber_setup: [north direction(late) efficiency, north direction(early) efficiency, south direction efficiency]
+        :param detectors: [north direction(late) efficiency, north direction(early) efficiency, south direction efficiency]
+        :param correction_factor: correction factor if needed due to struggle measuring some of the efficiencies
+        [north direction(late) efficiency, north direction(early) efficiency, south direction efficiency]
+        :return:
+        '''
+        [north_eff_L, north_eff_E, south_eff] = (np.array(taper) * np.array(optical_setup) * np.array(fiber_setup) *
+                                                 np.array(detectors) * np.array(correction_factor)).tolist()
+        north_eff_EL = (north_eff_L + north_eff_E) / 2
+        # north_eff_EL = north_eff_E
+        return north_eff_L, north_eff_E, north_eff_EL, south_eff
     def init_params_for_experiment(self, dict):
 
         self.sequence_len = len(dict['input']['sequences']['South_sequence_vector'])
@@ -1192,6 +1209,8 @@ class experiment_data_analysis:
         self.number_of_photons_per_pulse = []
         self.avg_photons_per_reflection_bg = []
         self.avg_photons_per_transmission_bg = []
+        self.avg_scattering_per_reflection_bg = []
+        self.avg_scattering_per_transmission_bg = []
         self.avg_photons_per_reflection = []
         self.avg_photons_per_transmission = []
         self.qber, self.qber_err, self.SNR, self.qber_bg, self.qber_err_bg = [
@@ -1205,10 +1224,10 @@ class experiment_data_analysis:
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
             ] for _ in range(7)
         ]
-        self.avg_k_ex, self.avg_lock_err = [
+        self.avg_k_ex, self.avg_lock_err, self.MZ_balancing, self.pulses_with_multiphotons = [
             [
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
-            ] for _ in range(2)
+            ] for _ in range(4)
         ]
         self.position_of_data, self.avg_k_ex_per_data_point, self.avg_lock_err_per_data_point = [
             [
@@ -1225,21 +1244,46 @@ class experiment_data_analysis:
         for indx, dicionary in enumerate(self.list_of_all_analysis_dictionaries):
             number_of_photons_per_pulse, avg_photons_per_reflection_bg, avg_photons_per_transmission_bg = (
                 self.calc_average_photons_per_SPRINT_pulse(dicionary['background'], coupling_tranmission=0.477,
-                                                           north_efficiency=0.357, south_efficiency=0.465375))
-            self.number_of_photons_per_pulse.append(number_of_photons_per_pulse)
+                                                           north_efficiency=self.north_eff_EL,
+                                                           south_efficiency=self.south_eff,
+                                                           pulse_location=dicionary['background'][
+                                                               'Pulses_location_in_seq'], pulse_shift=0))
+            # self.number_of_photons_per_pulse.append(number_of_photons_per_pulse)
+            self.number_of_photons_per_pulse.append(avg_photons_per_reflection_bg + avg_photons_per_transmission_bg)
             self.avg_photons_per_reflection_bg.append(avg_photons_per_reflection_bg)
             self.avg_photons_per_transmission_bg.append(avg_photons_per_transmission_bg)
 
             _, avg_photons_per_reflection, avg_photons_per_transmission = (
                 self.calc_average_photons_per_SPRINT_pulse(dicionary['experiment'], coupling_tranmission=0.477,
-                                                           north_efficiency=0.357, south_efficiency=0.465375))
+                                                           north_efficiency=self.north_eff_EL,
+                                                           south_efficiency=self.south_eff,
+                                                           pulse_location=dicionary['experiment'][
+                                                               'Pulses_location_in_seq'], pulse_shift=0))
             self.avg_photons_per_reflection.append(avg_photons_per_reflection)
             self.avg_photons_per_transmission.append(avg_photons_per_transmission)
+
+            _, avg_scattering_per_reflection_bg, avg_scattering_per_transmission_bg = (
+                self.calc_average_photons_per_SPRINT_pulse(dicionary['experiment'], coupling_tranmission=0.477,
+                                                           north_efficiency=self.north_eff_EL,
+                                                           south_efficiency=self.south_eff,
+                                                           pulse_location=dicionary['background'][
+                                                               'Pulses_location_in_seq'], pulse_shift=-125))
+            self.avg_scattering_per_reflection_bg.append(avg_scattering_per_reflection_bg)
+            self.avg_scattering_per_transmission_bg.append(avg_scattering_per_transmission_bg)
 
             self.avg_lock_err[indx] = [statistics.mean(dicionary['experiment']['Cavity_Lock_Error']),
                                        statistics.stdev(dicionary['experiment']['Cavity_Lock_Error'])]
             self.avg_k_ex[indx] = [statistics.mean(dicionary['experiment']['Kappa_Ex']),
                                    statistics.stdev(dicionary['experiment']['Kappa_Ex'])]
+            self.MZ_balancing[indx] = [np.mean(dicionary['experiment']['MZ_balancing']['MZ_BP_counts_balancing_check_batch'], axis=1),
+                                       np.mean(dicionary['experiment']['MZ_balancing']['MZ_DP_counts_balancing_check_batch'], axis=1),
+                                       np.mean(dicionary['experiment']['MZ_balancing'][
+                                                   'MZ_DP_counts_balancing_check_batch'], axis=1) / \
+                                       (np.mean(dicionary['experiment']['MZ_balancing'][
+                                                    'MZ_BP_counts_balancing_check_batch'], axis=1) +
+                                        np.mean(dicionary['experiment']['MZ_balancing'][
+                                                    'MZ_DP_counts_balancing_check_batch'], axis=1))
+                                       ]
 
             for cond_index, cond in enumerate(self.conditions):
                 # QBER and fidelity for each condition:
@@ -1282,16 +1326,7 @@ class experiment_data_analysis:
                 bright_counts_per_data_point = np.array(b)
                 dark_counts_per_data_point = np.array(d)
 
-                # rel_indices_fidelity = (
-                #     np.where((transmission_counts_per_data_point + reflection_counts_per_data_point) > 0))
-                # transmission_counts_per_data_point[rel_indices_fidelity] = \
-                #     (transmission_counts_per_data_point[rel_indices_fidelity] /
-                #      (transmission_counts_per_data_point[rel_indices_fidelity] +
-                #      reflection_counts_per_data_point[rel_indices_fidelity]))
-                # reflection_counts_per_data_point[rel_indices_fidelity] = \
-                #     (reflection_counts_per_data_point[rel_indices_fidelity] /
-                #      (transmission_counts_per_data_point[rel_indices_fidelity] +
-                #      reflection_counts_per_data_point[rel_indices_fidelity]))
+                self.pulses_with_multiphotons[indx].append([np.where(transmission_counts_per_data_point[np.where(np.array(r))] > 1), len(np.where(np.array(t)[np.where(np.array(r))])[0])])
 
                 rel_indices = np.where((bright_counts_per_data_point + dark_counts_per_data_point) > 0)
                 bright_counts_per_data_point[rel_indices] = (bright_counts_per_data_point[rel_indices] /
@@ -1313,13 +1348,12 @@ class experiment_data_analysis:
                 self.transmission_err[indx].append(np.sqrt(sum(transmission_counts_per_data_point)) / transmission_efficiency / number_of_transits)
                 self.reflection[indx].append(reflection / number_of_transits)
                 self.reflection_err[indx].append(np.sqrt(sum(reflection_counts_per_data_point)) / reflection_efficiency / number_of_transits)
-                self.information_gain_Eve[indx].append(transmission_given_reflection /
-                                                       (len(np.where(np.array(r))[0]) / reflection_efficiency))
+                self.information_gain_Eve[indx].append(transmission_given_reflection / len(np.where(np.array(r))[0]))
                 self.information_gain_Eve_err[indx].append(np.sqrt(
                     (len(np.where(np.array(t)[np.where(np.array(r))])[0]) *
-                     (reflection_efficiency / (transmission_efficiency * len(np.where(np.array(r))[0]))) ** 2) +
+                     (1 / (transmission_efficiency * len(np.where(np.array(r))[0]))) ** 2) +
                     (len(np.where(np.array(r))[0]) *
-                     (transmission_given_reflection / (len(np.where(np.array(r))[0])**2 / reflection_efficiency)) ** 2))
+                     (transmission_given_reflection / len(np.where(np.array(r))[0])**2) ** 2))
                 )
                 # Calculate fidelity for each condition
                 if self.experiment_type == 'T':
@@ -1328,16 +1362,16 @@ class experiment_data_analysis:
                     self.fidelity[indx].append(reflection / (transmission + reflection))
 
                 ## calculate qber
-                Bright_counts = sum(bright_counts_per_data_point[rel_indices])
-                Dark_counts = sum(dark_counts_per_data_point[rel_indices])
-                if (Bright_counts + Dark_counts) == 0:
+                self.Bright_counts = sum(bright_counts_per_data_point[rel_indices])
+                self.Dark_counts = sum(dark_counts_per_data_point[rel_indices])
+                if (self.Bright_counts + self.Dark_counts) == 0:
                     self.qber[indx].append(0)
                     self.qber_err[indx].append(0)
                 else:
-                    self.qber[indx].append(Dark_counts / (Dark_counts + Bright_counts))
-                    qber_std = np.sqrt((Dark_counts / (Dark_counts + Bright_counts) ** 2 *
-                                        np.sqrt(Bright_counts)) ** 2 + (Bright_counts / (Dark_counts + Bright_counts) ** 2 *
-                                                                        np.sqrt(Dark_counts)) ** 2)
+                    self.qber[indx].append(self.Dark_counts / (self.Dark_counts + self.Bright_counts))
+                    qber_std = np.sqrt((self.Dark_counts / (self.Dark_counts + self.Bright_counts) ** 2 *
+                                        np.sqrt(self.Bright_counts)) ** 2 +
+                                       (self.Bright_counts / (self.Dark_counts + self.Bright_counts) ** 2 * np.sqrt(self.Dark_counts)) ** 2)
                     self.qber_err[indx].append(qber_std)
                 self.SNR[indx].append(dicionary['experiment'][cond]['SNR'])
 
@@ -1386,7 +1420,7 @@ class experiment_data_analysis:
                 # self.SNR[indx].append(dicionary['experiment'][cond]['SNR'])
 
     def calc_average_photons_per_SPRINT_pulse(self, dictionary, coupling_tranmission=0.477, north_efficiency=0.357,
-                                              south_efficiency=0.465375):
+                                              south_efficiency=0.465375, pulse_location=[], pulse_shift=0):
         '''
 
         :param dictionary:
@@ -1404,8 +1438,11 @@ class experiment_data_analysis:
         total_clicks_in_SPRINT_pulse_transmission_considering_efficiency = []
         total_clicks_in_SPRINT_pulse_reflection_considering_efficiency = []
         pulse_duration = []
-        for lst in dictionary['Pulses_location_in_seq']:
+        # for lst in dictionary['Pulses_location_in_seq']:
+        for lst in pulse_location:
             if lst[-1] == 'n':
+            # if lst[-1] == 'N':
+                lst[:-1] = (np.array(lst[:-1]) + pulse_shift).tolist()
                 pulse_duration.append(lst[1]-lst[0])
                 total_clicks_in_SPRINT_pulse_north.append(sum(clicks_in_north_per_seq[lst[0]:lst[1]]))
                 (total_clicks_in_SPRINT_pulse_transmission_considering_efficiency.
@@ -1414,6 +1451,8 @@ class experiment_data_analysis:
                 (total_clicks_in_SPRINT_pulse_reflection_considering_efficiency.
                  append(sum(clicks_in_south_per_seq[lst[0]:lst[1]])/south_efficiency))
             elif lst[-1] == 's':
+            # if lst[-1] == 'S':
+                lst[:-1] = (np.array(lst[:-1]) + pulse_shift).tolist()
                 pulse_duration.append(lst[1]-lst[0])
                 total_clicks_in_SPRINT_pulse_north.append(sum(clicks_in_north_per_seq[lst[0]:lst[1]]))
                 (total_clicks_in_SPRINT_pulse_reflection_considering_efficiency.
@@ -1447,6 +1486,22 @@ class experiment_data_analysis:
                 return 'T'
             if (self.list_of_pulses[i-1] == 'S' and self.list_of_pulses[i] == 'n') or (self.list_of_pulses[i-1] == 'N' and self.list_of_pulses[i] == 's'):
                 return 'R'
+
+    def infromation_gain_theory(self, number_of_photons, reflection_state_fidelities, transmit_state_fidelities):
+        '''
+
+        :param reflection_state_fidelities:
+        :param transmit_state_fidelities:
+        :return:
+        '''
+        info_gain = []
+        mu_arr = np.linspace(0, number_of_photons[-1]*1.1, 1000)
+        for mu in mu_arr:
+            sf1 = stats.poisson.sf(1, mu)
+            pmf1 = stats.poisson.sf(1, mu)
+            gain = sf1 * transmit_state_fidelities + (1 - reflection_state_fidelities) * sf1
+            info_gain.append(gain)
+        return info_gain
 
     def plot_all_QBER_results_bg(self):
         '''
@@ -1525,7 +1580,8 @@ class experiment_data_analysis:
         #              'k--')
 
         self.lgnd = self.ax.legend(loc='upper right', handler_map=my_handler_map)
-        self.ax.set_xlim(0, 1.3)
+        # self.ax.set_xlim(0, 1.3)
+        self.ax.set_xlim(0, max(self.number_of_photons_per_pulse) * 1.1)
         self.ax.set_ylim(0, 0.6)
         self.ax.set_ylabel('QBER', fontsize=24)
         self.ax.set_xlabel('$\mu $[#photons from Alice]', fontsize=24)
@@ -1610,9 +1666,9 @@ class experiment_data_analysis:
         #                 self.list_of_all_analysis_dictionaries[0]['experiment']['qber_data']['qber'],
         #                 'k--')
 
-        self.lgnd = self.ax_xy.legend(loc='upper right')
-        self.ax.set_xlim(0)
-        self.ax.set_ylim(0)
+        # self.lgnd = self.ax_xy.legend(loc='upper right')
+        self.ax_xy.set_xlim(left=0)
+        self.ax_xy.set_ylim(bottom=0)
         self.ax_xy.set_ylabel('Information gain Eve', fontsize=24)
         self.ax_xy.set_xlabel('$\mu $[#photons from Alice]', fontsize=24)
         self.ax_xy.grid(visible=True, which='both', axis='both')
@@ -1635,7 +1691,7 @@ class experiment_data_analysis:
         coeffs = np.polyfit(x, y, 1)
         poly = np.poly1d(coeffs)
         plt.plot(x, poly(x), color='red', label='NumPy polyfit')
-        plt.text(0.05, 0.95, f'NumPy: y = {coeffs[0]:.4f}x + {coeffs[1]:.4f}',
+        plt.text(0.05, 0.95, f'NumPy: y = {coeffs[0]:.6f}x + {coeffs[1]:.6f}',
                  transform=plt.gca().transAxes, fontsize=10, verticalalignment='top')
         plt.xlabel('$\mu $[#photons from Alice]')
         plt.ylabel('R [#photons]')
@@ -1659,18 +1715,20 @@ class experiment_data_analysis:
         plt.figure(figsize=(12, 8))
         # plt.scatter(x, y_with, label='with atoms')
         plt.errorbar(x, y_with, yerr=y_with_err, fmt='o', capsize=3, label='with atoms')
-        plt.scatter(x, y_without, label='without atoms')
+        plt.scatter(x, y_without, color='r', label='without atoms')
 
         coeffs = np.polyfit(x, y_without, 1)
         poly = np.poly1d(coeffs)
         plt.plot(x, poly(x), color='red', label='NumPy polyfit')
-        plt.text(0.05, 0.95, f'NumPy: y = {coeffs[0]:.4f}x + {coeffs[1]:.4f}',
+        plt.text(0.05, 0.95, f'NumPy: y = {coeffs[0]:.6f}x + {coeffs[1]:.6f}',
                  transform=plt.gca().transAxes, fontsize=10, verticalalignment='top')
 
         plt.xlabel(x_title)
         plt.ylabel(y_title)
+        plt.xlim(left=0)
+        plt.ylim(bottom=0)
         plt.grid(True)
-        plt.legend()
+        # plt.legend()
         plt.show()
 
     def onpick(self, event):
@@ -1684,7 +1742,7 @@ class experiment_data_analysis:
 
     def update(self, val):
         (min_length, max_length) = self.s_transit_length.val
-        self.analyze_all_results(reflection_efficiency=0.357, transmission_efficiency=0.465375, min_transit_len=min_length,
+        self.analyze_all_results(reflection_efficiency=self.reflection_eff, transmission_efficiency=self.transmission_eff, min_transit_len=min_length,
                                  max_transit_len=max_length)
 
         for indx, cond in enumerate(self.conditions):
@@ -1711,6 +1769,24 @@ class experiment_data_analysis:
         self.f.canvas.draw_idle()
 
         # Class's constructor
+
+    def create_notepad_file(self, title, variable_names, variable_values):
+
+        # Dictionary to store variable names and their corresponding values
+        data = {}
+
+        # Generate random values for each variable
+        for name, value in zip(variable_names, variable_values):
+            data[name] = value
+
+        # Write to a notepad file
+        with open(f"{title}.txt", "w") as file:
+            file.write(f"{title}\n")
+            for name, values in data.items():
+                file.write(f"{name}:\n")
+                file.write(f"{values}\n")
+
+        print(f"File '{title}.txt' has been created successfully.")
 
     def __init__(self, analyze_results=False, transit_conditions=None):
 
@@ -1787,6 +1863,13 @@ class experiment_data_analysis:
             sys.exit(1)
 
         self.transit_conditions = transit_conditions
+        self.north_eff_L, self.north_eff_E, self.north_eff_EL, self.south_eff = (
+            self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.7, 0.7, 0.73], fiber_setup=[0.85, 0.85, 0.85],
+                                   detectors=[0.75, 0.75, 0.75], correction_factor=[1.1, 0.9, 1]))
+        # self.north_eff_EL = 1
+        # self.north_eff_L = 1
+        # self.north_eff_E = 1
+        # self.south_eff = 1
 
         if analyze_results:
             self.list_of_all_analysis_dictionaries = self.load_all_analysis_data()
@@ -1794,7 +1877,14 @@ class experiment_data_analysis:
                                '[[' in key]
             self.experiment_type = self.reflection_or_transmission_exp(
                 self.list_of_all_analysis_dictionaries[0])  # returns 'T' for transmission and 'R' for reflection
-            self.analyze_all_results(reflection_efficiency=0.357, transmission_efficiency=0.465375, min_transit_len=1000,
+            if self.list_of_pulses[-1] == 'n':
+                self.reflection_eff = self.south_eff
+                self.transmission_eff = self.north_eff_EL
+            else:
+                self.reflection_eff = self.north_eff_EL
+                self.transmission_eff = self.south_eff
+            self.analyze_all_results(reflection_efficiency=self.reflection_eff,
+                                     transmission_efficiency=self.transmission_eff, min_transit_len=1000,
                                      max_transit_len=5000)
             self.plot_all_QBER_results_bg()
             self.plot_all_QBER_results()
@@ -1864,7 +1954,6 @@ class experiment_data_analysis:
             self.plot_results()
             self.batcher.empty_all()
 
-
 class CustomErrorbarHandler(matplotlib.legend_handler.HandlerErrorbar):
     """
     Sub-class the standard error-bar handler
@@ -1895,6 +1984,7 @@ if __name__ == '__main__':
     self.s_transit_length.on_changed(self.update)
     self.f.canvas.mpl_connect('pick_event', self.onpick)
     self.plot_linear_fit(self.number_of_photons_per_pulse, self.avg_photons_per_reflection_bg)
+    # self.plot_linear_fit(self.avg_photons_per_transmission_bg, self.avg_photons_per_reflection_bg)
     self.plot_with_and_without_atoms(self.number_of_photons_per_pulse, [elem[4] for elem in self.transmission],
                                      [elem[4] for elem in self.transmission_err], self.avg_photons_per_transmission_bg,
                                      x_title='$\mu $[#photons from Alice]', y_title='T [#photons]')
@@ -1903,4 +1993,47 @@ if __name__ == '__main__':
                                      x_title='$\mu $[#photons from Alice]', y_title='R [#photons]')
     self.plot_x_y(self.number_of_photons_per_pulse, [elem[4] for elem in self.information_gain_Eve],
                   [elem[4] for elem in self.information_gain_Eve_err], 'Information gain Eve' + self.conditions[4])
+
+    Title = "PNSA - x-direction, north(early+late) efficiency"
+    coupling_tranmission = 0.477
+    experiment_data = {
+        "General": {
+            "k_ex": statistics.mean(self.all_k_ex_per_data_point[4]),
+            "k_ex stdev": statistics.stdev(self.all_k_ex_per_data_point[4]),
+            "lock_error": statistics.mean(self.all_lock_err_per_data_point[4]),
+            "lock error stdev": statistics.stdev(self.all_lock_err_per_data_point[4]),
+            "Scattering S-direction": np.mean(np.array(self.avg_scattering_per_transmission_bg) * 1000/210),
+            "Scattering N-direction": np.mean(np.array(self.avg_scattering_per_reflection_bg) * 1000/210),
+            "Mu before cavity": (np.array(self.avg_photons_per_transmission_bg) / coupling_tranmission).tolist(),
+            "Mu after cavity": self.number_of_photons_per_pulse,
+            "Transmission without atom": self.avg_photons_per_transmission_bg,
+            "Transmission with atom": [elem[4] for elem in self.transmission],
+            "Transmission error with atom": [elem[4] for elem in self.transmission_err],
+            "Reflection without atom": self.avg_photons_per_reflection_bg,
+            "Reflection with atom": [elem[4] for elem in self.reflection],
+            "Reflection error with atom": [elem[4] for elem in self.reflection_err],
+            "MZ balancing QBER": statistics.mean(sum([list(res[2]) for res in self.MZ_balancing], []))*100,
+            "MZ balancing QBER error": statistics.stdev(sum([list(res[2]) for res in self.MZ_balancing], []))*100,
+        },
+        "PNSA Bob": {
+            "QBER": [qber[4] for qber in self.qber],
+            "QBER error": [qber[4] for qber in self.qber_err],
+            "QBER no atoms": [qber[4] for qber in self.qber_bg],
+            "QBER no atoms error": [qber[4] for qber in self.qber_err_bg],
+            "Information gain": [elem[4] for elem in self.information_gain_Eve],
+            "Information error gain": [elem[4] for elem in self.information_gain_Eve_err],
+        },
+        "COW": {
+            "QBER": [0.48148148148148145, 0.5166666666666667],
+            "QBER error": [0.09615902424319278, 0.04561818188528033],
+            "Mu before cavity": [0.1287995741646935, 1.1558115616667475],
+            "Mu after cavity": [0.06413447570809142, 0.2190054973541224],
+            "MZ balancing qber": [5.354682181071349, 7.518498986485649],
+            "MZ balancing QBER error": [7171418564303327, 0.944491041256074]
+        },
+    }
+    with open(self.analysis_data_path + f"/{Title}.json", "w") as outfile:
+        json.dump(experiment_data, outfile, indent=4)
+
     plt.show()
+    pass
