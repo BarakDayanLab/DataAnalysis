@@ -1220,8 +1220,8 @@ class experiment_data_analysis:
                                                            south_efficiency=self.south_eff,
                                                            pulse_location=dicionary['background'][
                                                                'Pulses_location_in_seq'], pulse_shift=0))
-            self.number_of_photons_per_pulse.append(number_of_photons_per_pulse)
-            # self.number_of_photons_per_pulse.append(avg_photons_per_reflection_bg + avg_photons_per_transmission_bg)
+            # self.number_of_photons_per_pulse.append(number_of_photons_per_pulse)
+            self.number_of_photons_per_pulse.append(avg_photons_per_reflection_bg + avg_photons_per_transmission_bg)
             self.avg_photons_per_reflection_bg.append(avg_photons_per_reflection_bg)
             self.avg_photons_per_transmission_bg.append(avg_photons_per_transmission_bg)
 
@@ -1407,8 +1407,8 @@ class experiment_data_analysis:
         :param coupling_tranmission:
         :return:
         '''
-        clicks_in_north_per_seq = dictionary['folded_tt_N'] + dictionary['folded_tt_BP'] + dictionary['folded_tt_DP']
-        # clicks_in_north_per_seq = dictionary['folded_tt_BP'] + dictionary['folded_tt_DP']
+        # clicks_in_north_per_seq = dictionary['folded_tt_N'] + dictionary['folded_tt_BP'] + dictionary['folded_tt_DP']
+        clicks_in_north_per_seq = dictionary['folded_tt_BP'] + dictionary['folded_tt_DP']
         # clicks_in_north_per_seq = dictionary['folded_tt_BP']
         # clicks_in_north_per_seq = dictionary['folded_tt_DP']
         clicks_in_south_per_seq = dictionary['folded_tt_S'] + dictionary['folded_tt_FS']
@@ -1847,12 +1847,12 @@ class experiment_data_analysis:
         self.transit_conditions = transit_conditions
         detectors_efficiency = 0.55 * 1.2559  # SPCM detectors efficiency * relative efficiency of SNSPDs
         self.north_eff_L, self.north_eff_E, self.north_eff_EL, self.south_eff = (
-            # self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.6305, 0.6476, 0.73],
-            self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.6858, 0.6997, 0.7488],
+            self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.6305, 0.6476, 0.73],
+            # self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.6858, 0.6997, 0.7488],
                                    fiber_setup=[0.85, 0.85, 0.85],
                                    detectors=[detectors_efficiency, detectors_efficiency, detectors_efficiency],
-                                   correction_factor=[1.1333,  0.8898, 1]))
-                                   # correction_factor=[1.1656,  0.9366, 1]))
+                                   # correction_factor=[1.1333,  0.8898, 1]))
+                                   correction_factor=[1.1656,  0.9366, 1]))
         # self.north_eff_EL = self.north_eff_EL/2
         # self.north_eff_EL = 1
         # self.north_eff_L = 1
@@ -1982,11 +1982,13 @@ if __name__ == '__main__':
     self.plot_x_y(self.number_of_photons_per_pulse, [elem[4] for elem in self.information_gain_Eve],
                   [elem[4] for elem in self.information_gain_Eve_err], 'Information gain Eve' + self.conditions[4])
 
-    Title = "PNSA - x-direction, north(early+late) efficiency, taper_eff=0.8 - 20241128"
+    Title = "PNSA - x-direction, north(early+late) efficiency, taper_eff=0.8, neglecting N-directional - 20241128"
     # Title = "Sss - s-direction, north(late) efficiency, taper_eff=0.8"
     coupling_tranmission = 0.475
     experiment_data = {
         "General": {
+            "coupling_tranmission": coupling_tranmission,
+            "h": 1.1,
             "k_ex": statistics.mean(self.all_k_ex_per_data_point[4]),
             "k_ex stdev": statistics.stdev(self.all_k_ex_per_data_point[4]),
             "lock_error": statistics.mean(self.all_lock_err_per_data_point[4]),
