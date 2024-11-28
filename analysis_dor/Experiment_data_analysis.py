@@ -198,6 +198,7 @@ class experiment_data_analysis:
                                                  np.array(detectors) * np.array(correction_factor)).tolist()
         north_eff_EL = (north_eff_L + north_eff_E) / 2
         # north_eff_EL = north_eff_E
+        # north_eff_EL = north_eff_L
         return north_eff_L, north_eff_E, north_eff_EL, south_eff
     def init_params_for_experiment(self, dict):
 
@@ -328,23 +329,18 @@ class experiment_data_analysis:
         self.folded_tt_BP_timebins = np.zeros(exp_sequence_len, dtype=int)
         self.folded_tt_DP_timebins = np.zeros(exp_sequence_len, dtype=int)
 
-        # for x in self.Exp_dict['output']['South(5)']['South_timetags'][cycle]:
         for x in self.tt_S_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_S[x % exp_sequence_len] += 1
-        # for x in self.Exp_dict['output']['North(8)']['North_timetags'][cycle]:
         for x in self.tt_N_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_N[x % exp_sequence_len] += 1
-        # for x in self.Exp_dict['output']['Bright(1,2)']['Bright_timetags'][cycle]:
         for x in self.tt_BP_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_BP[x % exp_sequence_len] += 1
-        # for x in self.Exp_dict['output']['Dark(3,4)']['Dark_timetags'][cycle]:
         for x in self.tt_DP_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_DP[x % exp_sequence_len] += 1
-        # for x in self.Exp_dict['output']['FastSwitch(6,7)']['FS_timetags'][cycle]:
         for x in self.tt_FS_measure:
             if (x > int(0.6e6)) and (x < int(self.M_time - 0.4e6)):
                 self.folded_tt_FS[x % exp_sequence_len] += 1
@@ -359,31 +355,6 @@ class experiment_data_analysis:
 
         self.folded_tt_BP_timebins[self.end_of_det_pulse_in_seq:] = self.folded_tt_BP[self.end_of_det_pulse_in_seq:]
         self.folded_tt_DP_timebins[self.end_of_det_pulse_in_seq:] = self.folded_tt_DP[self.end_of_det_pulse_in_seq:]
-        # if self.pulses_location_in_seq_A or ((Config.sprint_pulse_amp_N[0] > 0) & (len(Config.sprint_pulse_amp_N) > 1)):
-        #     self.folded_tt_N_directional[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]] = \
-        #         (np.array(
-        #             self.folded_tt_N_directional[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]])
-        #          + (Config.sprint_pulse_amp_Early[1]
-        #             * np.array(self.folded_tt_BP[
-        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
-        #          + (Config.sprint_pulse_amp_Early[1]
-        #             * np.array(self.folded_tt_DP[
-        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
-        #          )
-        #     self.folded_tt_BP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]] = \
-        #         (np.array(
-        #             self.folded_tt_BP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]])
-        #          - (Config.sprint_pulse_amp_Early[1]
-        #             * np.array(self.folded_tt_BP[
-        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
-        #          )
-        #     self.folded_tt_DP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]] = \
-        #         (np.array(
-        #             self.folded_tt_DP_timebins[self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]])
-        #          - (Config.sprint_pulse_amp_Early[1]
-        #             * np.array(self.folded_tt_DP[
-        #                        self.pulses_location_in_seq[-2][0]:self.pulses_location_in_seq[-2][1]]))
-        #          )
 
     def fold_all_cycle_tt_histogram(self, exp_sequence_len):
 
@@ -1213,10 +1184,11 @@ class experiment_data_analysis:
         self.avg_scattering_per_transmission_bg = []
         self.avg_photons_per_reflection = []
         self.avg_photons_per_transmission = []
-        self.qber, self.qber_err, self.SNR, self.qber_bg, self.qber_err_bg = [
+        (self.qber, self.qber_err, self.Bright, self.Dark, self.SNR, self.qber_bg, self.qber_err_bg,
+         self.Bright_bg, self.Dark_bg) = [
             [
                 [] for _ in range(len(self.list_of_all_analysis_dictionaries))
-            ] for _ in range(5)
+            ] for _ in range(9)
         ]
         (self.fidelity, self.transmission, self.transmission_err, self.reflection, self.reflection_err,
          self.information_gain_Eve, self.information_gain_Eve_err) = [
@@ -1243,18 +1215,18 @@ class experiment_data_analysis:
         ]
         for indx, dicionary in enumerate(self.list_of_all_analysis_dictionaries):
             number_of_photons_per_pulse, avg_photons_per_reflection_bg, avg_photons_per_transmission_bg = (
-                self.calc_average_photons_per_SPRINT_pulse(dicionary['background'], coupling_tranmission=0.477,
+                self.calc_average_photons_per_SPRINT_pulse(dicionary['background'], coupling_tranmission=0.475,
                                                            north_efficiency=self.north_eff_EL,
                                                            south_efficiency=self.south_eff,
                                                            pulse_location=dicionary['background'][
                                                                'Pulses_location_in_seq'], pulse_shift=0))
-            # self.number_of_photons_per_pulse.append(number_of_photons_per_pulse)
-            self.number_of_photons_per_pulse.append(avg_photons_per_reflection_bg + avg_photons_per_transmission_bg)
+            self.number_of_photons_per_pulse.append(number_of_photons_per_pulse)
+            # self.number_of_photons_per_pulse.append(avg_photons_per_reflection_bg + avg_photons_per_transmission_bg)
             self.avg_photons_per_reflection_bg.append(avg_photons_per_reflection_bg)
             self.avg_photons_per_transmission_bg.append(avg_photons_per_transmission_bg)
 
             _, avg_photons_per_reflection, avg_photons_per_transmission = (
-                self.calc_average_photons_per_SPRINT_pulse(dicionary['experiment'], coupling_tranmission=0.477,
+                self.calc_average_photons_per_SPRINT_pulse(dicionary['experiment'], coupling_tranmission=0.475,
                                                            north_efficiency=self.north_eff_EL,
                                                            south_efficiency=self.south_eff,
                                                            pulse_location=dicionary['experiment'][
@@ -1263,7 +1235,7 @@ class experiment_data_analysis:
             self.avg_photons_per_transmission.append(avg_photons_per_transmission)
 
             _, avg_scattering_per_reflection_bg, avg_scattering_per_transmission_bg = (
-                self.calc_average_photons_per_SPRINT_pulse(dicionary['experiment'], coupling_tranmission=0.477,
+                self.calc_average_photons_per_SPRINT_pulse(dicionary['experiment'], coupling_tranmission=0.475,
                                                            north_efficiency=self.north_eff_EL,
                                                            south_efficiency=self.south_eff,
                                                            pulse_location=dicionary['background'][
@@ -1367,8 +1339,12 @@ class experiment_data_analysis:
                 if (self.Bright_counts + self.Dark_counts) == 0:
                     self.qber[indx].append(0)
                     self.qber_err[indx].append(0)
+                    self.Bright[indx].append(0)
+                    self.Dark[indx].append(0)
                 else:
                     self.qber[indx].append(self.Dark_counts / (self.Dark_counts + self.Bright_counts))
+                    self.Bright[indx].append(float(self.Bright_counts))
+                    self.Dark[indx].append(float(self.Dark_counts))
                     qber_std = np.sqrt((self.Dark_counts / (self.Dark_counts + self.Bright_counts) ** 2 *
                                         np.sqrt(self.Bright_counts)) ** 2 +
                                        (self.Bright_counts / (self.Dark_counts + self.Bright_counts) ** 2 * np.sqrt(self.Dark_counts)) ** 2)
@@ -1395,13 +1371,15 @@ class experiment_data_analysis:
                                                                   dark_counts_per_data_point_bg[rel_indices_bg]))
 
                 ## calculate qber
-                Bright_counts_bg = sum(bright_counts_per_data_point_bg[rel_indices_bg])
-                Dark_counts_bg = sum(dark_counts_per_data_point_bg[rel_indices_bg])
-                self.qber_bg[indx].append(Dark_counts_bg / (Dark_counts_bg + Bright_counts_bg))
-                qber_std = np.sqrt((Dark_counts_bg / (Dark_counts_bg + Bright_counts_bg) ** 2 *
-                                    np.sqrt(Bright_counts_bg)) ** 2 +
-                                   (Bright_counts_bg / (Dark_counts_bg + Bright_counts_bg) ** 2 *
-                                    np.sqrt(Dark_counts_bg)) ** 2)
+                self.Bright_counts_bg = sum(bright_counts_per_data_point_bg[rel_indices_bg])
+                self.Dark_counts_bg = sum(dark_counts_per_data_point_bg[rel_indices_bg])
+                self.qber_bg[indx].append(self.Dark_counts_bg / (self.Dark_counts_bg + self.Bright_counts_bg))
+                self.Bright_bg[indx].append(float(self.Bright_counts_bg))
+                self.Dark_bg[indx].append(float(self.Dark_counts_bg))
+                qber_std = np.sqrt((self.Dark_counts_bg / (self.Dark_counts_bg + self.Bright_counts_bg) ** 2 *
+                                    np.sqrt(self.Bright_counts_bg)) ** 2 +
+                                   (self.Bright_counts_bg / (self.Dark_counts_bg + self.Bright_counts_bg) ** 2 *
+                                    np.sqrt(self.Dark_counts_bg)) ** 2)
                 self.qber_err_bg[indx].append(qber_std)
 
                 # ## Calculate qber
@@ -1430,6 +1408,9 @@ class experiment_data_analysis:
         :return:
         '''
         clicks_in_north_per_seq = dictionary['folded_tt_N'] + dictionary['folded_tt_BP'] + dictionary['folded_tt_DP']
+        # clicks_in_north_per_seq = dictionary['folded_tt_BP'] + dictionary['folded_tt_DP']
+        # clicks_in_north_per_seq = dictionary['folded_tt_BP']
+        # clicks_in_north_per_seq = dictionary['folded_tt_DP']
         clicks_in_south_per_seq = dictionary['folded_tt_S'] + dictionary['folded_tt_FS']
         # plt.plot(clicks_in_north_per_seq)
         # plt.plot(clicks_in_south_per_seq)
@@ -1699,6 +1680,7 @@ class experiment_data_analysis:
         # plt.legend()
         plt.grid(True)
         plt.show()
+        return coeffs[1]
 
     def plot_with_and_without_atoms(self, x, y_with, y_with_err, y_without, x_title='', y_title=''):
         '''
@@ -1863,9 +1845,15 @@ class experiment_data_analysis:
             sys.exit(1)
 
         self.transit_conditions = transit_conditions
+        detectors_efficiency = 0.55 * 1.2559  # SPCM detectors efficiency * relative efficiency of SNSPDs
         self.north_eff_L, self.north_eff_E, self.north_eff_EL, self.south_eff = (
-            self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.7, 0.7, 0.73], fiber_setup=[0.85, 0.85, 0.85],
-                                   detectors=[0.75, 0.75, 0.75], correction_factor=[1.1, 0.9, 1]))
+            # self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.6305, 0.6476, 0.73],
+            self.system_efficiency(taper=[0.8, 0.8, 1], optical_setup=[0.6858, 0.6997, 0.7488],
+                                   fiber_setup=[0.85, 0.85, 0.85],
+                                   detectors=[detectors_efficiency, detectors_efficiency, detectors_efficiency],
+                                   correction_factor=[1.1333,  0.8898, 1]))
+                                   # correction_factor=[1.1656,  0.9366, 1]))
+        # self.north_eff_EL = self.north_eff_EL/2
         # self.north_eff_EL = 1
         # self.north_eff_L = 1
         # self.north_eff_E = 1
@@ -1983,7 +1971,7 @@ if __name__ == '__main__':
     self = experiment_data_analysis(analyze_results=True)
     self.s_transit_length.on_changed(self.update)
     self.f.canvas.mpl_connect('pick_event', self.onpick)
-    self.plot_linear_fit(self.number_of_photons_per_pulse, self.avg_photons_per_reflection_bg)
+    scattering_reflection = self.plot_linear_fit(self.number_of_photons_per_pulse, self.avg_photons_per_reflection_bg)
     # self.plot_linear_fit(self.avg_photons_per_transmission_bg, self.avg_photons_per_reflection_bg)
     self.plot_with_and_without_atoms(self.number_of_photons_per_pulse, [elem[4] for elem in self.transmission],
                                      [elem[4] for elem in self.transmission_err], self.avg_photons_per_transmission_bg,
@@ -1994,8 +1982,9 @@ if __name__ == '__main__':
     self.plot_x_y(self.number_of_photons_per_pulse, [elem[4] for elem in self.information_gain_Eve],
                   [elem[4] for elem in self.information_gain_Eve_err], 'Information gain Eve' + self.conditions[4])
 
-    Title = "PNSA - x-direction, north(early+late) efficiency"
-    coupling_tranmission = 0.477
+    Title = "PNSA - x-direction, north(early+late) efficiency, taper_eff=0.8 - 20241128"
+    # Title = "Sss - s-direction, north(late) efficiency, taper_eff=0.8"
+    coupling_tranmission = 0.475
     experiment_data = {
         "General": {
             "k_ex": statistics.mean(self.all_k_ex_per_data_point[4]),
@@ -2003,32 +1992,38 @@ if __name__ == '__main__':
             "lock_error": statistics.mean(self.all_lock_err_per_data_point[4]),
             "lock error stdev": statistics.stdev(self.all_lock_err_per_data_point[4]),
             "Scattering S-direction": np.mean(np.array(self.avg_scattering_per_transmission_bg) * 1000/210),
-            "Scattering N-direction": np.mean(np.array(self.avg_scattering_per_reflection_bg) * 1000/210),
+            # "Scattering N-direction": np.mean(np.array(self.avg_scattering_per_reflection_bg) * 1000/210),
+            "Scattering N-direction": scattering_reflection * 1000/210,
             "Mu before cavity": (np.array(self.avg_photons_per_transmission_bg) / coupling_tranmission).tolist(),
             "Mu after cavity": self.number_of_photons_per_pulse,
-            "Transmission without atom": self.avg_photons_per_transmission_bg,
-            "Transmission with atom": [elem[4] for elem in self.transmission],
-            "Transmission error with atom": [elem[4] for elem in self.transmission_err],
-            "Reflection without atom": self.avg_photons_per_reflection_bg,
-            "Reflection with atom": [elem[4] for elem in self.reflection],
-            "Reflection error with atom": [elem[4] for elem in self.reflection_err],
+            "Transmission without atoms": self.avg_photons_per_transmission_bg,
+            "Transmission with atoms": [elem[4] for elem in self.transmission],
+            "Transmission with atoms error": [elem[4] for elem in self.transmission_err],
+            "Reflection without atoms": self.avg_photons_per_reflection_bg,
+            "Reflection with atoms": [elem[4] for elem in self.reflection],
+            "Reflection with atoms error": [elem[4] for elem in self.reflection_err],
+            "Fidelity unconditioned": [fidelity[4] for fidelity in self.fidelity][0]*100,
+            "Fidelity conditioned": [fidelity[5] for fidelity in self.fidelity][0]*100,
             "MZ balancing QBER": statistics.mean(sum([list(res[2]) for res in self.MZ_balancing], []))*100,
             "MZ balancing QBER error": statistics.stdev(sum([list(res[2]) for res in self.MZ_balancing], []))*100,
         },
         "PNSA Bob": {
             "QBER": [qber[4] for qber in self.qber],
             "QBER error": [qber[4] for qber in self.qber_err],
+            "Bright": [elem[4] for elem in self.Bright],
+            "Dark": [elem[4] for elem in self.Dark],
             "QBER no atoms": [qber[4] for qber in self.qber_bg],
-            "QBER no atoms error": [qber[4] for qber in self.qber_err_bg],
+            "Bright no atoms": [elem[4] for elem in self.Bright_bg],
+            "Dark no atoms": [elem[4] for elem in self.Dark_bg],
             "Information gain": [elem[4] for elem in self.information_gain_Eve],
-            "Information error gain": [elem[4] for elem in self.information_gain_Eve_err],
+            "Information gain error": [elem[4] for elem in self.information_gain_Eve_err],
         },
         "COW": {
             "QBER": [0.48148148148148145, 0.5166666666666667],
             "QBER error": [0.09615902424319278, 0.04561818188528033],
             "Mu before cavity": [0.1287995741646935, 1.1558115616667475],
             "Mu after cavity": [0.06413447570809142, 0.2190054973541224],
-            "MZ balancing qber": [5.354682181071349, 7.518498986485649],
+            "MZ balancing QBER": [5.354682181071349, 7.518498986485649],
             "MZ balancing QBER error": [7171418564303327, 0.944491041256074]
         },
     }
