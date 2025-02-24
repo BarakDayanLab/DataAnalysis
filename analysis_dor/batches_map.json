@@ -53,6 +53,9 @@
     "seq_with_data_points": {
         "value_name": "seq_with_data_points"
     },
+    "transits_with_potential_data": {
+        "value_name": "transits_with_potential_data"
+    },
     "reflection_SPRINT_data": {
         "value_name": "reflection_SPRINT_data"
     },
